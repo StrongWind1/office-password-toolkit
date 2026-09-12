@@ -19,7 +19,8 @@ def decrypt_file(path: Path, out: Path, password: str) -> None:
     """Detect ``path`` and decrypt it to ``out`` with ``password``.
 
     Raises :class:`LookupError` if the container is unrecognised, or
-    :class:`NotImplementedError` if its handler has no decryptor yet.
+    :class:`~office_password_toolkit.formats.base.HandlerNotImplementedError`
+    if its handler has no decryptor yet.
     """
     logger.debug("decrypt_file: %s -> %s", path, out)
     result = detect(path)

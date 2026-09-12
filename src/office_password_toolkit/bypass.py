@@ -23,7 +23,8 @@ def bypass_file(path: Path, out: Path, *, remove_signatures: bool = False) -> No
     carry no recoverable secret, so they are left intact by default).
 
     Raises :class:`LookupError` if the container is unrecognised, or
-    :class:`NotImplementedError` if its handler has no bypass yet.
+    :class:`~office_password_toolkit.formats.base.HandlerNotImplementedError`
+    if its handler has no bypass yet.
     """
     logger.debug("bypass_file: %s -> %s (remove_signatures=%s)", path, out, remove_signatures)
     result = detect(path)

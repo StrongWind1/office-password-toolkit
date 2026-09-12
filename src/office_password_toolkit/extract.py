@@ -27,7 +27,8 @@ def extract_hashes(path: Path) -> list[ExtractedHash]:
     """Detect ``path`` and return every crackable hash line its handler can extract.
 
     Raises :class:`LookupError` if the container is unrecognised, or
-    :class:`NotImplementedError` if its handler has no extractor yet.
+    :class:`~office_password_toolkit.formats.base.HandlerNotImplementedError`
+    if its handler has no extractor yet.
     """
     logger.debug("extract_hashes: %s", path)
     result = detect(path)
