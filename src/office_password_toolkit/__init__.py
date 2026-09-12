@@ -16,9 +16,10 @@ from importlib.metadata import version
 from office_password_toolkit.bypass import bypass_file
 from office_password_toolkit.decrypt import decrypt_file
 from office_password_toolkit.defaults import default_passwords
-from office_password_toolkit.detect import detect
+from office_password_toolkit.detect import detect, detect_product
 from office_password_toolkit.extract import extract_hashes
-from office_password_toolkit.formats import handler_for
+from office_password_toolkit.formats import FormatHandler, handler_for
+from office_password_toolkit.formats.base import HandlerNotImplementedError
 from office_password_toolkit.models import (
     ContainerKind,
     DetectResult,
@@ -41,8 +42,10 @@ __all__ = [
     "ContainerKind",
     "DetectResult",
     "ExtractedHash",
+    "FormatHandler",
     "Gate",
     "GateType",
+    "HandlerNotImplementedError",
     "HashScheme",
     "Product",
     "RecoveryClass",
@@ -52,6 +55,7 @@ __all__ = [
     "decrypt_file",
     "default_passwords",
     "detect",
+    "detect_product",
     "extract_hashes",
     "gate_scheme_tag",
     "gate_status",
