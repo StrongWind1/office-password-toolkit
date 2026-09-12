@@ -240,6 +240,7 @@ _SCHEME_TO_TAG: Final[dict[HashScheme, str]] = {
     HashScheme.OFFICE_SHEETPROT: "iso-sha512",
     HashScheme.ODF: "odf",
     HashScheme.VBA_SHA1: "macros",
+    HashScheme.MSISAM: "msisam",
 }
 
 # Maps GateType → short scheme name for protection gates without a HashScheme.
