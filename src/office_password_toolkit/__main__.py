@@ -5,4 +5,5 @@ from __future__ import annotations
 
 from office_password_toolkit.cli.app import main
 
-main()
+if __name__ == "__main__":
+    main()
