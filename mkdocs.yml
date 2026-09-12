@@ -1,0 +1,191 @@
+site_name: office-password-toolkit
+site_description: Detect, extract, bypass, and decrypt passwords and protection in Microsoft Office and OpenDocument files
+site_url: https://strongwind.dev/office-password-toolkit/
+repo_url: https://github.com/StrongWind1/office-password-toolkit
+repo_name: StrongWind1/office-password-toolkit
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2025 - 2026 StrongWind1
+
+theme:
+  name: material
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    # Dark mode (default) — respects system preference
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    # Light mode — respects system preference
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+  features:
+    # Navigation
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - navigation.indexes
+    - navigation.footer
+    # Table of contents
+    - toc.follow
+    # Search
+    - search.highlight
+    - search.suggest
+    - search.share
+    # Header
+    - header.autohide
+    - announce.dismiss
+    # Content
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - content.action.view
+
+plugins:
+  - search
+  # Downloads the Google Fonts requested by theme.font at build time so the
+  # published site makes no third-party requests.
+  - privacy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.mark
+  - pymdownx.keys
+  - tables
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - def_list
+  - footnotes
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Quick start: getting-started/quick-start.md
+  - Usage:
+      - Commands: usage/commands.md
+  - Recovery techniques:
+      - Overview: recovery/README.md
+      - Default passwords: recovery/defaults.md
+      - Cleartext passwords: recovery/cleartext.md
+      - Decode obfuscation: recovery/decode.md
+      - Strip protection: recovery/strip.md
+      - Collide verifiers: recovery/collide.md
+      - VBA bypass: recovery/bypass.md
+  - By product:
+      - Word: research/formats/word.md
+      - Excel: research/formats/excel.md
+      - PowerPoint: research/formats/powerpoint.md
+      - OneNote: research/formats/onenote.md
+      - Outlook: research/formats/outlook.md
+      - Access: research/formats/access.md
+      - OpenDocument: research/formats/opendocument.md
+      - Visio: research/formats/visio.md
+      - Project: research/formats/project.md
+      - Publisher: research/formats/publisher.md
+      - InfoPath: research/formats/infopath.md
+  - By Office version:
+      - Office 2003 (and 97-XP): versions/office-2003.md
+      - Office 2007: versions/office-2007.md
+      - Office 2010: versions/office-2010.md
+      - Office 2013+: versions/office-2013.md
+      - LibreOffice (ODF): versions/libreoffice.md
+  - Algorithms:
+      - Research index: research/README.md
+      - Overview: research/overview.md
+      - ECMA-376 Agile: research/algorithms/password/ecma376-agile.md
+      - ECMA-376 Standard: research/algorithms/password/ecma376-standard.md
+      - RC4 CryptoAPI: research/algorithms/password/rc4-cryptoapi-sha1.md
+      - RC4 MD5 Legacy: research/algorithms/password/rc4-md5-legacy.md
+      - XOR Obfuscation: research/algorithms/password/xor-obfuscation.md
+      - ISO Protection Hash: research/algorithms/password/iso-protection-hash.md
+      - Word 2007 Protection: research/algorithms/password/word2007-documentprotection.md
+      - ODF Encryption: research/algorithms/password/odf-encryption.md
+      - VBA Project Password: research/algorithms/password/vba-project-password.md
+      - PST CRC-32: research/algorithms/password/pst-crc32.md
+      - IRM / RMS: research/algorithms/non-password/irm-rms-encryption.md
+      - Digital Signatures: research/algorithms/non-password/digital-signatures.md
+      - PST Body Cipher: research/algorithms/non-password/pst-body-cipher.md
+      - Access Jet XOR: research/algorithms/non-password/access-jet-obfuscation.md
+  - Hashcat:
+      - Current modes:
+          - Overview: hashcat/current/README.md
+          - "Mode 9400 — Office 2007": hashcat/current/09400_office2007.md
+          - "Mode 9500 — Office 2010": hashcat/current/09500_office2010.md
+          - "Mode 9600 — Office 2013": hashcat/current/09600_office2013.md
+          - "Modes 9700-9720 — RC4+MD5": hashcat/current/09700_rc4_md5.md
+          - "Modes 9800-9820 — RC4+SHA1": hashcat/current/09800_rc4_sha1.md
+          - "Mode 18400 — ODF 1.2": hashcat/current/18400_odf12.md
+          - "Mode 18600 — ODF 1.1": hashcat/current/18600_odf11.md
+          - "Mode 25300 — Protection": hashcat/current/25300_protection.md
+      - Proposed unified:
+          - Overview: hashcat/proposed/README.md
+          - "$office$ — Document open": hashcat/proposed/office_open.md
+          - "$protect$ — Protection": hashcat/proposed/office_protect.md
+          - "$odf$ — OpenDocument": hashcat/proposed/odf_open.md
+          - "$vba$ — VBA project": hashcat/proposed/vba_project.md
+          - Not crackable: hashcat/proposed/not_crackable.md
+  - Architecture:
+      - Modular design: design/modular-design.md
+      - CLI output: design/cli-output.md
+      - Gap analysis: design/gap-analysis.md
+      - Code mapping: design/toolkit-architecture.md
+  - Spec corpus:
+      - Triage: research/landscape/spec-corpus.md
+      - Prior art: research/landscape/prior-art.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/StrongWind1/office-password-toolkit
+      name: office-password-toolkit on GitHub
+  generator: false
+
+extra_css:
+  # theme.css is the site palette; primary and accent are both `custom`,
+  # so every Material colour variable is defined there.
+  - stylesheets/theme.css
+
+extra_javascript:
+  - javascripts/a11y.js
+
+strict: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn

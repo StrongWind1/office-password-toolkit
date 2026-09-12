@@ -1,0 +1,164 @@
+[project]
+name = "office-password-toolkit"
+version = "0.1.0"
+description = "Detect, extract, bypass, and decrypt passwords and protection in Microsoft Office and OpenDocument files"
+readme = "README.md"
+requires-python = ">=3.11,<3.15"
+license = "Apache-2.0"
+authors = [{ name = "StrongWind1" }]
+keywords = [
+  "office",
+  "msoffice",
+  "password-recovery",
+  "encryption",
+  "msoffcrypto",
+  "ole",
+  "ooxml",
+  "dfir",
+  "forensics",
+  "red-team",
+  "security",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Security",
+]
+dependencies = [
+  "typer",
+  "rich",
+  "olefile",
+  "cryptography",
+  # Backport of typing.override (stdlib only from 3.12) so handler overrides can
+  # carry @override under the project's 3.11 floor -- ty's strict mode requires it.
+  "typing-extensions",
+  # Argon2id KDF for ODF 1.3 "Wholesome Encryption" (LibreOffice 24.8+): the
+  # memory-hard KDF that no hashcat/John kernel reaches, so decryption of those
+  # packages is done in-process. Only this format needs it.
+  "argon2-cffi",
+  "pycryptodome>=3.23.0",
+]
+
+[project.urls]
+Repository = "https://github.com/StrongWind1/office-password-toolkit"
+Documentation = "https://strongwind1.github.io/office-password-toolkit/"
+Changelog = "https://github.com/StrongWind1/office-password-toolkit/blob/main/CHANGELOG.md"
+Issues = "https://github.com/StrongWind1/office-password-toolkit/issues"
+
+[project.scripts]
+office-password-toolkit = "office_password_toolkit.cli.app:main"
+opt = "office_password_toolkit.cli.app:main"
+
+[dependency-groups]
+dev = ["pytest", "pytest-cov", "ruff", "ty", "pre-commit>=4.0"]
+docs = ["mkdocs", "mkdocs-material"]
+
+# Track olefile at the upstream HEAD rather than the last PyPI release (v0.47):
+# HEAD carries write-path fixes and Python 3.13 support the toolkit's OLE-stream
+# bypass paths (VBA lock, 16-bit protection records, PST password) rely on.
+# No revision is pinned here, so `uv lock --upgrade` follows the default branch.
+[tool.uv.sources]
+olefile = { git = "https://github.com/decalage2/olefile" }
+
+[tool.ruff]
+target-version = "py311"
+line-length = 320
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "COM812", # Trailing comma - conflicts with ruff formatter
+  "ISC001", # Implicit string concat - conflicts with ruff formatter
+  "D203",   # No blank line before docstring - conflicts with D211
+  "D213",   # Multi-line docstring at second line - conflicts with D212
+]
+
+[tool.ruff.lint.flake8-copyright]
+notice-rgx = "(?i)# SPDX-License-Identifier"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests are exempt from linting entirely (they still get formatted); test code
+# legitimately uses assert, hard-coded spec vectors, private access, and the
+# hash primitives the formats themselves mandate.
+"tests/**" = ["ALL"]
+# The two default passwords are public, spec-documented constants -- not secrets.
+"src/office_password_toolkit/constants.py" = ["S105"]
+# Typer maps each CLI option to a function parameter, so command signatures
+# legitimately exceed the positional-argument-count limit; the rule does not fit them.
+# Typer maps each CLI option to a function parameter, so command signatures
+# legitimately exceed the positional-argument-count limit; the rule does not fit them.
+# BLE001: the verify command catches broad Exception from olefile/zipfile because
+# corrupt/malformed files can raise any exception type -- the point of verify is
+# to test whether the file is structurally valid, so catching broadly IS the logic.
+"src/office_password_toolkit/cli/app.py" = ["PLR0913", "BLE001", "C901", "PLR0912"]
+# Access handler: gate enumeration branches by engine × encryption-info, which
+# unavoidably exceeds return-count and complexity limits; TRY004 fires on a guard
+# that raises ValueError for dict values with wrong runtime types (not statically
+# inferrable from dict[str, int|bytes|str]).
+"src/office_password_toolkit/formats/access.py" = ["PLR0911", "PLR0912", "C901", "TRY004"]
+# ecma376.py crypto module needs these suppressions for spec-mandated constructs:
+#   N811  -- RC2/TripleDES are imported as _RC2Alg/_TripleDES to distinguish them
+#            from the algorithm-name strings the spec uses; ruff sees the rename as
+#            "constant imported as non-constant" but they are types, not constants.
+#   N806  -- DES key-length constants (_DES_KEY_LEN, _TWO_KEY_LEN) inside a function
+#            are uppercase because they are fixed crypto constants, not loop variables.
+#   S305  -- ECB mode is intentionally used for DESX whitening (per [MS-OFFCRYPTO]
+#            Section 2.3.4.10 DESX construction) where the manual CBC chaining wraps
+#            individual ECB calls with XOR whitening layers. Not a misuse of ECB.
+"src/office_password_toolkit/crypto/ecma376.py" = ["N811", "N806", "S305"]
+
+[tool.ty.environment]
+python-version = "3.11"
+root = ["src"]
+
+[tool.ty.rules]
+all = "error"
+
+[tool.ty.terminal]
+error-on-warning = true
+
+[tool.ty.analysis]
+# olefile ships no type information; treat its imports as Any rather than
+# flagging every untyped attribute and call. (cryptography is fully typed.)
+replace-imports-with-any = ["olefile.**"]
+allowed-unresolved-imports = []
+strict-equality-semantics = true
+strict-generic-narrowing = true
+respect-type-ignore-comments = false
+
+[[tool.ty.overrides]]
+include = ["tests/**"]
+
+[tool.ty.overrides.rules]
+all = "ignore"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Treat DeprecationWarnings as errors so deprecated crypto APIs (e.g., short
+# TripleDES keys) never silently regress. Third-party warnings from libraries
+# we don't control are filtered out below.
+filterwarnings = [
+  "error::DeprecationWarning",
+  # olefile internally triggers DeprecationWarnings on some Python versions.
+  "ignore::DeprecationWarning:olefile",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/office_password_toolkit"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/site", "/ref"]

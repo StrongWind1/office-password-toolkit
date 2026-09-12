@@ -1,0 +1,81 @@
+/* office-password-toolkit -- site theme.
+ *
+ * The only place this site's colour is defined. mkdocs.yml sets `primary: custom`
+ * and `accent: custom`, which make Material emit the palette attributes but ship
+ * no rules for them, so every variable below has to be supplied here. Anything
+ * omitted silently falls back to Material's indigo defaults in main.css.
+ *
+ * `:root > *` rather than `:root`: the palette attributes live on <body>, so this
+ * matches the same element and keeps winning even if the config ever moves back
+ * to a named colour. Plain `:root` targets <html> and would be overridden.
+ *
+ * Material already paints .md-header and .md-tabs from --md-primary-fg-color.
+ * Do not add direct background-color rules for them -- that is what let the
+ * header drift away from the variable that claims to define it.
+ */
+
+:root > * {
+  /* Header and tabs. Lightness is chosen so the bar separates from the page by
+   * the same amount on every site (~2:1); a fixed value would not, since at equal
+   * lightness a blue header reads far darker than a yellow one. */
+  --md-primary-fg-color: #843167;
+  --md-primary-fg-color--light: #9b3978;
+  --md-primary-fg-color--dark: #6e2956;
+
+  /* Text drawn on top of the header bar */
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+
+  /* Text drawn on top of accent-filled elements */
+  --md-accent-bg-color: #ffffff;
+  --md-accent-bg-color--light: #ffffffb3;
+}
+
+/* Accent ships one shade per scheme. Material's 16 named accents are tuned to stay
+ * legible on both backgrounds; a hand-picked one is not, and every value here was
+ * solved to clear WCAG AA (4.5:1) against the scheme it renders on.
+ *
+ * --md-typeset-a-color is set explicitly because Material defaults it to
+ * var(--md-primary-fg-color), which renders body links in the header colour. */
+
+[data-md-color-scheme="slate"] {
+  /* Material's own default. Deliberately NOT the site hue: --md-hue drives all 19
+   * hsl-derived slate surfaces -- page, code blocks, footer, tables -- so tinting
+   * it per site colours the entire page and hurts readability. Backgrounds are
+   * identical and neutral across all eleven sites; only the header and accent
+   * carry the site identity. */
+  --md-hue: 225deg;
+
+  --md-accent-fg-color: #e9639f;
+  --md-accent-fg-color--transparent: #e9639f1a;
+  --md-typeset-a-color: #e9639f;
+}
+
+[data-md-color-scheme="default"] {
+  --md-accent-fg-color: #980648;
+  --md-accent-fg-color--transparent: #9806481a;
+  --md-typeset-a-color: #980648;
+}
+
+/* --- Accessibility fixes --- */
+
+/* link-in-text-block (axe): links inside body text must be distinguishable by
+   more than colour alone. Underline all in-content links so they pass without
+   relying on the reader perceiving the accent hue. Navigation and UI links
+   (header, sidebar, footer, tabs, ToC) are excluded — their placement already
+   conveys their role. */
+.md-typeset a:not(.md-nav__link):not(.md-footer__link):not(.headerlink):not(.md-source):not(.md-icon) {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/* scrollable-region-focusable (axe): code blocks that overflow horizontally
+   must be keyboard-reachable so users can scroll them without a mouse. */
+.md-typeset pre > code {
+  /* stylelint-disable-next-line property-no-vendor-prefix */
+  -webkit-overflow-scrolling: touch;
+}
+
+.md-typeset pre:has(> code) {
+  outline-offset: -2px;
+}
