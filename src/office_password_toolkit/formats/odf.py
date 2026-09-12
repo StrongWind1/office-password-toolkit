@@ -38,7 +38,7 @@ import re
 import xml.parsers.expat
 import zipfile
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from typing_extensions import override
 
@@ -56,19 +56,19 @@ logger = logging.getLogger(__name__)
 # Fixed member names inside every ODF-ZIP (OpenDocument Part 3 Section 3). The
 # manifest is always cleartext; ``mimetype`` must be the first entry and stored
 # uncompressed or the package is invalid.
-_MANIFEST_PATH = "META-INF/manifest.xml"
-_MIMETYPE_NAME = "mimetype"
-_CONTENT_NAME = "content.xml"
+_MANIFEST_PATH: Final = "META-INF/manifest.xml"
+_MIMETYPE_NAME: Final = "mimetype"
+_CONTENT_NAME: Final = "content.xml"
 
 # hashcat modes for the two supported ODF profiles ([odf-encryption.md] Section 2).
-_MODE_ODF12_AES = 18400  # ODF 1.2: SHA-256 start key + PBKDF2 x100000 + AES-256-CBC
-_MODE_ODF11_BLOWFISH = 18600  # ODF 1.1: SHA-1 start key + PBKDF2 x1024 + Blowfish CFB
+_MODE_ODF12_AES: Final = 18400  # ODF 1.2: SHA-256 start key + PBKDF2 x100000 + AES-256-CBC
+_MODE_ODF11_BLOWFISH: Final = 18600  # ODF 1.1: SHA-1 start key + PBKDF2 x1024 + Blowfish CFB
 
 # Cipher-URI markers used to map an entry to its hashcat mode. The OASIS schema
 # lets cipher vary independently, so we key off the meaningful token in the URI
 # rather than an exact string (matches crypto.odf's own classification).
-_CIPHER_AES_CBC = "aes256-cbc"
-_CIPHER_BLOWFISH = "blowfish"
+_CIPHER_AES_CBC: Final = "aes256-cbc"
+_CIPHER_BLOWFISH: Final = "blowfish"
 
 # Exceptions that a malformed-but-well-named package can raise while we read and
 # parse it. Detection/enumeration must never crash on bad input, so every public
