@@ -632,7 +632,7 @@ def _ace_open_gate(header: AccessHeader) -> Gate | None:
     # No parseable EncryptionInfo at 0x299. Check whether the blob length is 0
     # (unprotected database with a default encoding key) vs nonzero-but-unparseable.
     blob = _extract_ace2007_blob(header.first_page)
-    if blob is None or len(blob) == 0:
+    if blob is None:
         return None  # no EncryptionInfo -> unprotected, the encoding key is the Access default
     note = "ACE 2007 database has a non-empty EncryptionInfo blob at 0x299 but it could not be parsed -> extraction GAP (UNCONFIRMED)"
     return Gate(GateType.OPEN, RecoveryClass.CRACK, where="ACE 2007 database (EncryptionInfo unparseable)", note=note)
