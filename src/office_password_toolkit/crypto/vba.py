@@ -116,6 +116,7 @@ def decode_data_encryption(hex_str: str) -> bytes:
     idx = 3
 
     def _next() -> int:
+        """Decrypt the next byte using the rolling XOR feedback state."""
         nonlocal idx, enc_byte1, enc_byte2, unenc_byte1
         enc_val = enc[idx]
         idx += 1
@@ -158,6 +159,7 @@ def encode_data_encryption(plaintext: bytes, seed: int, proj_key: int) -> str:
     enc_byte2 = version_enc
 
     def _emit(plain: int) -> None:
+        """Encrypt one byte and append it to the output buffer."""
         nonlocal enc_byte1, enc_byte2, unenc_byte1
         enc_val = plain ^ ((enc_byte2 + unenc_byte1) & 0xFF)
         out.append(enc_val)

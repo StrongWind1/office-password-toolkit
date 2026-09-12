@@ -80,15 +80,15 @@ _STREAM_SIZE_PREFIX: Final = 8  # \EncryptedPackage 8-byte LE plaintext-length p
 _CHAINING_CBC: Final = "ChainingModeCBC"  # the only agile chaining mode implemented here
 
 # --- Supported hashcat key sizes (proxy selection in office_hash_line) ---
-_KEY_BITS_128: Final = 128
-_KEY_BITS_256: Final = 256
+_KEY_BITS_128: Final = 128  # AES-128 key length in bits (9500 agile SHA-1)
+_KEY_BITS_256: Final = 256  # AES-256 key length in bits (9600 agile SHA-512)
 
 # --- Agile block keys ([MS-OFFCRYPTO] Section 2.3.4.13) ---
 # Appended after the spun hash before the finalisation hash so that the three
 # derived keys (verifier input, verifier hash, intermediate) never collide.
-_BLOCK_KEY_VERIFIER_INPUT: Final = b"\xfe\xa7\xd2\x76\x3b\x4b\x9e\x79"
-_BLOCK_KEY_VERIFIER_VALUE: Final = b"\xd7\xaa\x0f\x6d\x30\x61\x34\x4e"
-_BLOCK_KEY_INTERMEDIATE: Final = b"\x14\x6e\x0b\xe7\xab\xac\xd0\xd6"
+_BLOCK_KEY_VERIFIER_INPUT: Final = b"\xfe\xa7\xd2\x76\x3b\x4b\x9e\x79"  # derives the encryptedVerifierHashInput key
+_BLOCK_KEY_VERIFIER_VALUE: Final = b"\xd7\xaa\x0f\x6d\x30\x61\x34\x4e"  # derives the encryptedVerifierHashValue key
+_BLOCK_KEY_INTERMEDIATE: Final = b"\x14\x6e\x0b\xe7\xab\xac\xd0\xd6"  # derives the intermediate key for bulk decryption
 
 # --- Hash-name normalisation ---
 # Map the spec's ASCII algorithm strings (agile) to hashlib names. Keys are
@@ -672,6 +672,8 @@ def _unified_hash_token(spec_name: str) -> str:
 
 _3DES_2KEY_MAX: Final = 128  # 3DES at <=128-bit key length is the 2-key (112-bit) variant
 
+# Maps spec cipher names to unified hash-line tokens for ciphers whose token is
+# fixed (not parameterised by key size, unlike AES/RC4 which include the bit width).
 _CIPHER_FIXED_TOKENS: Final[dict[str, str]] = {
     "RC2": "rc2",
     "DES": "des",

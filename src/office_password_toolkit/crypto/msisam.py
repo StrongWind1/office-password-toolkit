@@ -26,28 +26,28 @@ import hashlib
 import struct
 from dataclasses import dataclass
 
-# --- Constants ----------------------------------------------------------------
+# --- Constants (Jackcess MSISAMCryptCodecHandler / thewd-hub moneyCrk) --------
 
-_SALT_OFFSET: int = 0x72
-_SALT_LEN_FULL: int = 8
-_SALT_LEN_CHECK: int = 4
-_CRYPT_CHECK_START: int = 0x2E9
-_CRYPT_CHECK_LEN: int = 4
-_FLAGS_OFFSET: int = 0x298
-_FLAG_NEW_ENCRYPTION: int = 0x06
-_FLAG_USE_SHA1: int = 0x20
-_FLAG_MONEY_2003: int = 0x08
-_PASSWORD_BUF_SIZE: int = 0x28
-_DIGEST_LEN: int = 16
-_MAX_ENCRYPTED_PAGE: int = 0x0E
-_PAGE_SIZE: int = 0x1000
-_RC4_STATE_SIZE: int = 256
-_RC4_KEY_LEN: int = 4
+_SALT_OFFSET: int = 0x72  # offset of the 8-byte salt within the RC4-decrypted header region
+_SALT_LEN_FULL: int = 8  # full salt length used for RC4 key composition
+_SALT_LEN_CHECK: int = 4  # first 4 bytes of the salt used for password verification
+_CRYPT_CHECK_START: int = 0x2E9  # base offset of the 4-byte crypt-check block in page 0
+_CRYPT_CHECK_LEN: int = 4  # length of the crypt-check verification block
+_FLAGS_OFFSET: int = 0x298  # offset of the encryption-flags byte in page 0
+_FLAG_NEW_ENCRYPTION: int = 0x06  # two-bit mask (bits 1+2): either bit set = MSISAM encryption active
+_FLAG_USE_SHA1: int = 0x20  # bit 5: use SHA-1 instead of MD5 for the password digest
+_FLAG_MONEY_2003: int = 0x08  # bit 3: Money 2003+ format (crypt-check offset is adjusted)
+_PASSWORD_BUF_SIZE: int = 0x28  # 40-byte null-padded UTF-16LE password buffer
+_DIGEST_LEN: int = 16  # truncated digest length (both MD5 and SHA-1 are clipped to 16 bytes)
+_MAX_ENCRYPTED_PAGE: int = 0x0E  # pages 0-14 are encrypted; page 15+ are cleartext
+_PAGE_SIZE: int = 0x1000  # 4096-byte MSISAM page size
+_RC4_STATE_SIZE: int = 256  # RC4 S-box size (standard)
+_RC4_KEY_LEN: int = 4  # per-page key suffix length (salt XOR page number)
 
-# RC4 fixed key for header obfuscation (same as Jet 4).
+# RC4 fixed key for header region obfuscation (Jackcess CodecHandler.MSISAM_MAX_ENCODED_PAGE).
 _HEADER_RC4_KEY: bytes = b"\xc7\xda\x39\x6b"
-_HEADER_RC4_START: int = 0x18
-_HEADER_RC4_LEN: int = 0x80
+_HEADER_RC4_START: int = 0x18  # start of the RC4-obfuscated header region in page 0
+_HEADER_RC4_LEN: int = 0x80  # length of the RC4-obfuscated header region (128 bytes)
 
 
 # --- Data types ---------------------------------------------------------------

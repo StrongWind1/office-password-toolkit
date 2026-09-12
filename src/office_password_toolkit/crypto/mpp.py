@@ -24,27 +24,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# --- Props key constants (MPXJ PropsKey enum) ---
+# --- Props key constants (MPXJ PropsKey enum, net.sf.mpxj.mpp.Props) ---
 
-PROPS_KEY_PASSWORD_FLAG: Final = 0x35400000
-PROPS_KEY_PASSWORD_DATA: Final = 0x35400004
-PROPS_KEY_WRITE_PASSWORD_DATA: Final = 0x35400005
-PROPS_KEY_ENCRYPTION_CODE: Final = 0x35400007
+PROPS_KEY_PASSWORD_FLAG: Final = 0x35400000  # 1-byte flag: bit 0 = open password, bit 1 = write reservation
+PROPS_KEY_PASSWORD_DATA: Final = 0x35400004  # 64-byte XOR-masked open-password block
+PROPS_KEY_WRITE_PASSWORD_DATA: Final = 0x35400005  # 64-byte XOR-masked write-reservation password block
+PROPS_KEY_ENCRYPTION_CODE: Final = 0x35400007  # 1-byte encryption code used to derive the XOR mask
 
 # --- Props stream names per MPP version ---
+# The OLE directory entry whose name is the space-padded version string holds the
+# binary Props data. Keys are the raw directory names from MPP9/12/14 files.
 
 _PROPS_STREAMS: Final[dict[str, str]] = {
-    "   19": "Props9",
-    "   112": "Props12",
-    "   114": "Props14",
+    "   19": "Props9",  # MPP9 (Project 2000-2003)
+    "   112": "Props12",  # MPP12 (Project 2007)
+    "   114": "Props14",  # MPP14 (Project 2010+)
 }
 
-# --- Password decode constants (MPXJ MPPUtility) ---
+# --- Password decode constants (MPXJ MPPUtility.decodePassword) ---
 
-_PASSWORD_BLOCK_SIZE: Final = 64
-_PASSWORD_MASK: Final = (60, 30, 48, 2, 6, 14, 8, 22, 44, 12, 38, 10, 62, 16, 34, 24)
-_PROPS_HEADER_SIZE: Final = 16
-_PROPS_ITEM_PREFIX_SIZE: Final = 12
+_PASSWORD_BLOCK_SIZE: Final = 64  # fixed size of the XOR-masked password block
+_PASSWORD_MASK: Final = (60, 30, 48, 2, 6, 14, 8, 22, 44, 12, 38, 10, 62, 16, 34, 24)  # byte offsets within the block where password characters are stored
+_PROPS_HEADER_SIZE: Final = 16  # Props stream header length (includes magic + item count)
+_PROPS_ITEM_PREFIX_SIZE: Final = 12  # per-item prefix: 4B size + 4B key + 4B attrib
 
 
 def parse_props(data: bytes) -> dict[int, bytes]:

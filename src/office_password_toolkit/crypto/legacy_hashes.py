@@ -29,21 +29,24 @@ from typing import Final
 
 logger = logging.getLogger(__name__)
 
-_MASK32: Final = 0xFFFFFFFF
+_MASK32: Final = 0xFFFFFFFF  # 32-bit bitmask for unsigned arithmetic
 
 
 # --- MD4 (RFC 1320) ----------------------------------------------------------
 
 
 def _md4_f(x: int, y: int, z: int) -> int:
+    """MD4 round-1 auxiliary function F(X,Y,Z) = (X AND Y) OR (NOT X AND Z) per RFC 1320."""
     return (x & y) | (~x & _MASK32 & z)
 
 
 def _md4_g(x: int, y: int, z: int) -> int:
+    """MD4 round-2 auxiliary function G(X,Y,Z) = (X AND Y) OR (X AND Z) OR (Y AND Z) per RFC 1320."""
     return (x & y) | (x & z) | (y & z)
 
 
 def _md4_h(x: int, y: int, z: int) -> int:
+    """MD4 round-3 auxiliary function H(X,Y,Z) = X XOR Y XOR Z per RFC 1320."""
     return x ^ y ^ z
 
 
