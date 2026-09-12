@@ -57,11 +57,6 @@ _HASH_CTORS: Final[dict[str, Callable[[bytes], hashlib._Hash]]] = {
     "MD5": hashlib.md5,
 }
 
-# MD2 and MD4 are CNG-producible (Win7+) but absent from most OpenSSL builds.
-# The toolkit provides its own pure-Python implementations (RFC 1319 / RFC 1320)
-# so these hashes work on every platform without an OpenSSL legacy provider.
-_UNSUPPORTED_ALGORITHMS: Final[frozenset[str]] = frozenset[str]()
-
 # The counter appended each round is a 4-byte little-endian unsigned int
 # ([MS-OFFCRYPTO] Section 1.3.6: all container integers are little-endian).
 _COUNTER_WIDTH: Final = 4
