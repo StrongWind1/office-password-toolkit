@@ -275,13 +275,6 @@ def _cipher_algorithm_obj(cipher_algorithm: str, key: bytes) -> algorithms.AES |
     raise ValueError(msg)
 
 
-def _block_size_for(cipher_algorithm: str) -> int:
-    """Return the cipher's block size in bytes ([MS-OFFCRYPTO] Section 2.3.4.10 ``blockSize``)."""
-    if cipher_algorithm.upper() == "AES":
-        return 16
-    return 8  # 3DES, 3DES_112, DES, DESX, RC2 are all 8-byte block
-
-
 def _cbc_decrypt(cipher_algorithm: str, key: bytes, iv: bytes, data: bytes) -> bytes:
     """Decrypt ``data`` with the named agile cipher in CBC mode ([MS-OFFCRYPTO] Section 2.3.4.13)."""
     name = cipher_algorithm.upper()
