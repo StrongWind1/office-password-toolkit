@@ -152,7 +152,7 @@ def _decode_workgroup_payload(payload: bytes) -> WorkgroupIdentity | None:
         offset = i * _BLOCK_SIZE
         data[offset : offset + _BLOCK_SIZE] = cipher.decrypt(bytes(data[offset : offset + _BLOCK_SIZE]))
 
-    def _extract(buf: bytes, start: int, max_len: int) -> str:
+    def _extract(buf: bytes | bytearray, start: int, max_len: int) -> str:
         end = buf.find(b"\x00", start, start + max_len)
         return bytes(buf[start : end if end >= 0 else start + max_len]).decode("ascii", errors="replace")
 
@@ -373,7 +373,7 @@ def _is_jet4(data: bytes) -> bool:
     return len(data) >= end and data[_JET_VERSION_OFFSET:end] == _JET4_VERSION_STRING
 
 
-def _decode_name(data: bytes, *, jet4: bool) -> str:
+def _decode_name(data: bytes | bytearray, *, jet4: bool) -> str:
     """Decode an account name from the decrypted section."""
     enc = "utf-16-le" if jet4 else "cp1252"
     return bytes(data).decode(enc, errors="replace").rstrip("\x00")

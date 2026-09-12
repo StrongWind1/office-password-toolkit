@@ -346,8 +346,7 @@ def _word_finding(gate: GateType, where: str, attrs: dict[str, str]) -> _Finding
     digest = attrs.get("hash")
     if sid and spin and salt and digest:
         opt = unified_protect_line_from_sid(int(sid), int(spin), salt, digest)
-        if opt is not None:
-            return _Finding(gate, RecoveryClass.STRIP, where, HashScheme.OFFICE_SHEETPROT, None, opt, _NOTE_WORD_LEGACY, opt_hash_line=opt)
+        return _Finding(gate, RecoveryClass.STRIP, where, HashScheme.OFFICE_SHEETPROT, None, opt, _NOTE_WORD_LEGACY, opt_hash_line=opt)
     if "cryptAlgorithmSid" in attrs or "hash" in attrs:
         return _Finding(gate, RecoveryClass.STRIP, where, note=_NOTE_WORD_LEGACY)
     return _Finding(gate, RecoveryClass.STRIP, where)
