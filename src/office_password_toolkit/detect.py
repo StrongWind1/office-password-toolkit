@@ -126,7 +126,13 @@ _GENERIC_EXT_TO_PRODUCT: Final[dict[str, Product]] = {
 
 
 def detect(path: Path) -> DetectResult:
-    """Triage a single file into a :class:`DetectResult` (container + encrypted + product)."""
+    """Triage a single file into a :class:`DetectResult` (container + encrypted + product).
+
+    The returned :attr:`~DetectResult.gates` list is **not populated** by this function
+    because gate enumeration is more expensive and not always needed. To enumerate gates,
+    call ``handler_for(result.container).gates(path)`` on the result's container, or use
+    the CLI ``info`` command which does this automatically.
+    """
     header = _read_header(path)
     container = _classify(header)
     encrypted = _is_encrypted(path, container)
