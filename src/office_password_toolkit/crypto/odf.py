@@ -489,8 +489,8 @@ def unified_odf_line(entry: OdfEntry) -> str:
     else:
         cipher = "blowfish"
     iters = (entry.argon2_iterations or _ARGON2_DEFAULT_ITERATIONS) if _uses_argon2(entry) else entry.iterations
-    mem = entry.argon2_memory or _ARGON2_DEFAULT_MEMORY_KIB if _uses_argon2(entry) else 0
-    lanes = entry.argon2_lanes or _ARGON2_DEFAULT_LANES if _uses_argon2(entry) else 0
+    mem = (entry.argon2_memory or _ARGON2_DEFAULT_MEMORY_KIB) if _uses_argon2(entry) else 0
+    lanes = (entry.argon2_lanes or _ARGON2_DEFAULT_LANES) if _uses_argon2(entry) else 0
     if _uses_gcm(entry) and len(entry.ciphertext) >= _GCM_IV_BYTES + _GCM_TAG_BYTES:
         checksum_hex = entry.ciphertext[-_GCM_TAG_BYTES:].hex()
         ct_hex = entry.ciphertext[_GCM_IV_BYTES:-_GCM_TAG_BYTES].hex()
