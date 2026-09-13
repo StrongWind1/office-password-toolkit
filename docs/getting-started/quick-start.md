@@ -77,10 +77,15 @@ The same detection and extraction logic is available as a library:
 import office_password_toolkit as opt
 
 result = opt.detect("secret.xlsx")
-# result.gates -> [Gate(status="encrypted", scheme="agile-sha512"), ...]
+# result.container, result.encrypted, result.product
+
+# gate enumeration is a separate call (more expensive than detection)
+handler = opt.handler_for(result.container)
+gates = handler.gates("secret.xlsx")
+# [Gate(gate="open", recovery="crack", scheme="office-2013"), ...]
 
 hashes = opt.extract_hashes("secret.xlsx")
-# ["$office$*sha512*aes256*cbc*100000*<salt>*<verifier>*<hash>"]
+# [ExtractedHash(value="$office$*2013*...", scheme="office-2013", ...)]
 ```
 
-`detect()` returns the same `status:scheme` gate list that `opt info` prints. `extract_hashes()` returns the hash lines that would go to stdout.
+`detect()` classifies the container, encryption status, and product. Gate enumeration and hash extraction are separate calls — `handler.gates()` returns every protection mechanism, and `extract_hashes()` returns the crackable hash lines that would go to stdout.
