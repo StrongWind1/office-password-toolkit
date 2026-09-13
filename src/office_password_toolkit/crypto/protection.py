@@ -28,7 +28,6 @@ verified with this standalone code instead.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from base64 import b64decode, b64encode
 from typing import TYPE_CHECKING, Final
@@ -43,17 +42,10 @@ logger = logging.getLogger(__name__)
 
 # --- Algorithm dispatch ---
 
-# Maps the ISO ``algorithmName`` attribute to a hashlib constructor.
-# Reserved value set per [MS-OFFCRYPTO] Section 2.4.2.4 / [MS-OE376] Section 2.1.438.
-# Keys are the canonical spec spellings; _canonical_algorithm() normalises the
-# many wire variants ("SHA-512", "SHA512", "sha 512", ...) onto these keys.
-_HASH_CTORS: Final[dict[str, Callable[[bytes], hashlib._Hash]]] = {
-    "SHA-1": hashlib.sha1,
-    "SHA-256": hashlib.sha256,
-    "SHA-384": hashlib.sha384,
-    "SHA-512": hashlib.sha512,
-    "MD5": hashlib.md5,
-}
+# The reserved algorithm set per [MS-OFFCRYPTO] Section 2.4.2.4 / [MS-OE376] Section 2.1.438.
+# _canonical_algorithm() normalises the many wire variants ("SHA-512", "SHA512", "sha 512", ...)
+# onto these keys; _resolve_hash() maps them to hashes.new() constructors.
+_SUPPORTED_ALGORITHMS: Final[frozenset[str]] = frozenset({"SHA-1", "SHA-256", "SHA-384", "SHA-512", "MD5", "MD4", "MD2"})
 
 # The counter appended each round is a 4-byte little-endian unsigned int
 # ([MS-OFFCRYPTO] Section 1.3.6: all container integers are little-endian).
@@ -145,22 +137,19 @@ def _canonical_algorithm(algorithm_name: str) -> str:
     return lookup.get(squashed, algorithm_name.upper())
 
 
-def _resolve_hash(algorithm_name: str) -> Callable[[bytes], hashlib._Hash | hashes._LegacyHashWrapper]:
+def _resolve_hash(algorithm_name: str) -> Callable[[bytes], hashes._LegacyHashWrapper]:
     """Resolve an ``algorithmName`` to a hashlib-compatible constructor.
 
-    Uses hashlib for SHA-1/256/384/512 and MD5. Falls back to the toolkit's own
-    pure-Python implementations (``crypto.hashes``) for MD2 and MD4, which
-    are CNG-producible but absent from most OpenSSL builds.
+    All algorithms (SHA-1/256/384/512, MD5, MD4, MD2) are routed through
+    ``hashes.new()`` which handles both stdlib hashlib and the toolkit's own
+    pure-Python MD4/MD2 implementations transparently.
     """
     canonical = _canonical_algorithm(algorithm_name)
-    ctor = _HASH_CTORS.get(canonical)
-    if ctor is not None:
-        return ctor
-    if canonical in ("MD4", "MD2"):
-        hashlib_name = canonical.lower()
-        return lambda data, _name=hashlib_name: hashes.new(_name, data)
-    msg = f"Unknown algorithmName {algorithm_name!r}; not a reserved ISO write-protection primitive ([MS-OFFCRYPTO] Section 2.4.2.4)"
-    raise ValueError(msg)
+    if canonical not in _SUPPORTED_ALGORITHMS:
+        msg = f"Unknown algorithmName {algorithm_name!r}; not a reserved ISO write-protection primitive ([MS-OFFCRYPTO] Section 2.4.2.4)"
+        raise ValueError(msg)
+    hashlib_name = canonical.lower().replace("-", "")
+    return lambda data, _name=hashlib_name: hashes.new(_name, data)
 
 
 def iso_protection_hash(password: str, salt: bytes, spin_count: int, algorithm_name: str) -> bytes:

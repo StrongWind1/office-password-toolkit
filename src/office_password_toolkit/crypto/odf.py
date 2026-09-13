@@ -48,7 +48,6 @@ See ``office/analysis/password-algorithms/odf-encryption.md`` Sections 3-7 and 1
 from __future__ import annotations
 
 import base64
-import hashlib
 import logging
 import xml.parsers.expat
 import zlib
@@ -56,6 +55,7 @@ from dataclasses import dataclass
 
 from office_password_toolkit.crypto.ciphers import InvalidTag, aes_cbc_decrypt, aes_gcm_decrypt, blowfish_cfb_decrypt
 from office_password_toolkit.crypto.hashes import argon2id, compare_digest, pbkdf2_hmac_sha1
+from office_password_toolkit.crypto.hashes import digest as _digest
 
 __all__ = [
     "OdfEntry",
@@ -250,7 +250,7 @@ def _derive_key(entry: OdfEntry, password: str) -> bytes:
 
     # SHA-256 start key (32 B) for ODF 1.2 / 1.3; SHA-1 (20 B) for ODF 1.1. SHA-1
     # here is a legacy KDF primitive fixed by the format, not a security choice.
-    start_key = hashlib.sha256(password_bytes).digest() if _uses_sha256_start(entry) else hashlib.sha1(password_bytes, usedforsecurity=False).digest()
+    start_key = _digest("sha256", password_bytes) if _uses_sha256_start(entry) else _digest("sha1", password_bytes)
 
     # ODF 1.3 replaces the PBKDF2 stretch with a memory-hard Argon2id pass.
     if _uses_argon2(entry):
@@ -327,8 +327,8 @@ def _plaintext_checksum(entry: OdfEntry, plaintext: bytes) -> bytes:
     """
     window = plaintext[:_CHECKSUM_WINDOW_BYTES]
     if _uses_sha256_checksum(entry):
-        return hashlib.sha256(window).digest()
-    return hashlib.sha1(window, usedforsecurity=False).digest()
+        return _digest("sha256", window)
+    return _digest("sha1", window)
 
 
 def verify(entry: OdfEntry, password: str, ciphertext: bytes) -> bool:

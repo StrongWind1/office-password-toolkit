@@ -22,11 +22,11 @@ Ported from Jackcess ``MSISAMCryptCodecHandler.java`` and thewd-hub
 
 from __future__ import annotations
 
-import hashlib
 import struct
 from dataclasses import dataclass
 
 from office_password_toolkit.crypto.ciphers import rc4 as _rc4
+from office_password_toolkit.crypto.hashes import digest as _digest
 
 # --- Constants (Jackcess MSISAMCryptCodecHandler / thewd-hub moneyCrk) --------
 
@@ -112,8 +112,7 @@ def _password_digest(password: str, *, use_sha1: bool) -> bytes:
         encoded = password.upper().encode("utf-16-le")
         pw_buf[: min(len(encoded), _PASSWORD_BUF_SIZE)] = encoded[:_PASSWORD_BUF_SIZE]
 
-    algo = hashlib.sha1 if use_sha1 else hashlib.md5
-    return algo(bytes(pw_buf)).digest()[:_DIGEST_LEN]
+    return _digest("sha1" if use_sha1 else "md5", bytes(pw_buf))[:_DIGEST_LEN]
 
 
 def verify_password(params: MsisamParams, password: str) -> bool:

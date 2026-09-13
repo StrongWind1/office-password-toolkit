@@ -31,9 +31,10 @@ installs. There is no UTF-16 anywhere in this scheme.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from typing import Final
+
+from office_password_toolkit.crypto.hashes import digest as _digest
 
 logger = logging.getLogger(__name__)
 
@@ -241,9 +242,8 @@ def password_hash(password: str, key: bytes, codepage: str = _DEFAULT_CODEPAGE) 
     :func:`build_password_hash_structure`), never to the hash input -- applying it to
     the digest would break hashcat -m 110 compatibility.
     """
-    # [MS-OVBA] Section 2.4.4.4 mandates SHA-1; usedforsecurity=False records that the
-    # format -- not this code -- chose the primitive (satisfies ruff S324 honestly).
-    return hashlib.new("sha1", password.encode(codepage) + key, usedforsecurity=False).digest()
+    # [MS-OVBA] Section 2.4.4.4 mandates SHA-1.
+    return _digest("sha1", password.encode(codepage) + key)
 
 
 def build_password_hash_structure(key: bytes, password_hash_bytes: bytes) -> bytes:

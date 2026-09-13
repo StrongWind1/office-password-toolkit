@@ -34,7 +34,6 @@ Design notes:
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import struct
 from dataclasses import dataclass
@@ -42,6 +41,7 @@ from enum import StrEnum
 from typing import Final
 
 from office_password_toolkit.crypto.ciphers import rc4 as rc4_crypt
+from office_password_toolkit.crypto.hashes import digest as _digest
 
 logger = logging.getLogger(__name__)
 
@@ -138,13 +138,13 @@ def rc4_md5_derive_key(password: str, salt: bytes, block: int = 0) -> bytes:
     """
     pw_bytes = password.encode(_PW_ENCODING)
     # H0 -> first 40 bits. Everything past byte 5 is discarded (the 40-bit cap).
-    t0 = hashlib.md5(pw_bytes, usedforsecurity=False).digest()[:_MD5_TRUNC_LEN]
+    t0 = _digest("md5", pw_bytes)[:_MD5_TRUNC_LEN]
     # 21-byte (t0 || salt) block repeated 16 times = 336 bytes. Note: t0 first, salt second.
     intermediate = (t0 + salt) * _MD5_BLOCK_REPEAT
-    t1 = hashlib.md5(intermediate, usedforsecurity=False).digest()[:_MD5_TRUNC_LEN]
+    t1 = _digest("md5", intermediate)[:_MD5_TRUNC_LEN]
     # Append the little-endian block number, then hash the 9-byte input.
     block_le = struct.pack("<I", block)
-    hfinal = hashlib.md5(t1 + block_le, usedforsecurity=False).digest()
+    hfinal = _digest("md5", t1 + block_le)
     return hfinal[:_RC4_KEY_LEN]
 
 
@@ -160,7 +160,7 @@ def rc4_md5_verify(password: str, salt: bytes, enc_verifier: bytes, enc_verifier
     decrypted = rc4_crypt(key, enc_verifier + enc_verifier_hash)
     verifier = decrypted[:_VERIFIER_LEN]
     stored_hash = decrypted[_VERIFIER_LEN : _VERIFIER_LEN + _MD5_HASH_LEN]
-    result = hashlib.md5(verifier, usedforsecurity=False).digest() == stored_hash
+    result = _digest("md5", verifier) == stored_hash
     logger.debug("rc4-md5 verify: %s", "pass" if result else "fail")
     return result
 
@@ -210,9 +210,9 @@ def rc4_cryptoapi_derive_key(password: str, salt: bytes, key_bits: int, block: i
     """
     pw_bytes = password.encode(_PW_ENCODING)
     # Salt prefixes the password -- getting this order wrong silently breaks everything.
-    h0 = hashlib.sha1(salt + pw_bytes, usedforsecurity=False).digest()
+    h0 = _digest("sha1", salt + pw_bytes)
     block_le = struct.pack("<I", block)
-    hfinal = hashlib.sha1(h0 + block_le, usedforsecurity=False).digest()
+    hfinal = _digest("sha1", h0 + block_le)
     key_bytes = key_bits // 8
     if key_bits == _KEYSIZE_40:
         # "first 40 bits of Hfinal and 88 bits set to zero, creating a 128-bit key."
@@ -233,7 +233,7 @@ def rc4_cryptoapi_verify(password: str, salt: bytes, key_bits: int, enc_verifier
     decrypted = rc4_crypt(key, enc_verifier + enc_verifier_hash)
     verifier = decrypted[:_VERIFIER_LEN]
     stored_hash = decrypted[_VERIFIER_LEN : _VERIFIER_LEN + _SHA1_HASH_LEN]
-    result = hashlib.sha1(verifier, usedforsecurity=False).digest() == stored_hash
+    result = _digest("sha1", verifier) == stored_hash
     logger.debug("rc4-cryptoapi verify: %s (keyBits=%d)", "pass" if result else "fail", key_bits)
     return result
 
