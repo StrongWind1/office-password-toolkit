@@ -49,18 +49,13 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import hmac
 import logging
 import xml.parsers.expat
 import zlib
 from dataclasses import dataclass
 
-from argon2.low_level import ARGON2_VERSION, Type, hash_secret_raw
-from cryptography.exceptions import InvalidTag
-from cryptography.hazmat.decrepit.ciphers.algorithms import Blowfish
-from cryptography.hazmat.decrepit.ciphers.modes import CFB
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from office_password_toolkit.crypto.ciphers import InvalidTag, aes_cbc_decrypt, aes_gcm_decrypt, blowfish_cfb_decrypt
+from office_password_toolkit.crypto.hashes import argon2id, compare_digest, pbkdf2_hmac_sha1
 
 __all__ = [
     "OdfEntry",
@@ -110,8 +105,6 @@ _CIPHERTEXT_CAP_BYTES = 1024
 # inflate with a negative window size to select the raw codec.
 _RAW_DEFLATE_WBITS = -15
 
-# The PBKDF2 PRF is HMAC-SHA1 in *both* profiles ([odf-encryption.md] Section 2).
-_PBKDF2_PRF = "sha1"
 
 # ODF 1.3 "Wholesome Encryption" (LibreOffice 24.8+, tdf#105844): Argon2id key
 # derivation + AES-256-GCM. The stored member is IV(12) || ciphertext || tag(16):
@@ -131,10 +124,6 @@ _AES_256_KEY_BYTES = 32
 _ARGON2_DEFAULT_ITERATIONS = 3
 _ARGON2_DEFAULT_MEMORY_KIB = 65536
 _ARGON2_DEFAULT_LANES = 4
-
-# LibreOffice derives with argon2id v1.3 (argon2.h ARGON2_VERSION_13 == 0x13 == 19);
-# argon2-cffi's ARGON2_VERSION is the same 19, so decode is byte-identical.
-_ARGON2_VERSION = ARGON2_VERSION
 
 
 class OdfUnsupportedError(NotImplementedError):
@@ -270,7 +259,7 @@ def _derive_key(entry: OdfEntry, password: str) -> bytes:
     # PBKDF2 password is the *start key*, not the raw password; block counter is
     # big-endian 1-based; excess HMAC output is truncated to dkLen (handled by
     # pbkdf2_hmac's dklen). RFC 2898.
-    return hashlib.pbkdf2_hmac(_PBKDF2_PRF, start_key, entry.salt, entry.iterations, dklen=entry.key_size)
+    return pbkdf2_hmac_sha1(start_key, entry.salt, entry.iterations, entry.key_size)
 
 
 def _derive_key_argon2(entry: OdfEntry, start_key: bytes) -> bytes:
@@ -286,7 +275,7 @@ def _derive_key_argon2(entry: OdfEntry, start_key: bytes) -> bytes:
     memory_kib = entry.argon2_memory or _ARGON2_DEFAULT_MEMORY_KIB
     lanes = entry.argon2_lanes or _ARGON2_DEFAULT_LANES
     key_size = entry.key_size or _AES_256_KEY_BYTES
-    return hash_secret_raw(secret=start_key, salt=entry.salt, time_cost=t_cost, memory_cost=memory_kib, parallelism=lanes, hash_len=key_size, type=Type.ID, version=_ARGON2_VERSION)
+    return argon2id(secret=start_key, salt=entry.salt, time_cost=t_cost, memory_cost=memory_kib, parallelism=lanes, hash_len=key_size)
 
 
 def _gcm_decrypt(entry: OdfEntry, key: bytes, member: bytes) -> bytes:
@@ -301,7 +290,7 @@ def _gcm_decrypt(entry: OdfEntry, key: bytes, member: bytes) -> bytes:
     :class:`~cryptography.exceptions.InvalidTag`.
     """
     ct_and_tag = member[_GCM_IV_BYTES:]
-    return AESGCM(key).decrypt(entry.iv, ct_and_tag, None)
+    return aes_gcm_decrypt(key, entry.iv, ct_and_tag, None)
 
 
 def _inflate(plaintext: bytes) -> bytes:
@@ -324,12 +313,10 @@ def _decrypt_cipher(entry: OdfEntry, key: bytes, ciphertext: bytes) -> bytes:
     if _is_aes_cbc(entry):
         # CBC needs whole blocks; trim any trailing partial block from a capped prefix.
         usable = len(ciphertext) - (len(ciphertext) % _AES_BLOCK_BYTES)
-        decryptor = Cipher(algorithms.AES(key), modes.CBC(entry.iv)).decryptor()
-        return decryptor.update(ciphertext[:usable]) + decryptor.finalize()
+        return aes_cbc_decrypt(key, entry.iv, ciphertext[:usable])
 
     # Blowfish CFB-64 -- a stream mode, so any ciphertext length is accepted.
-    decryptor = Cipher(Blowfish(key), CFB(entry.iv)).decryptor()
-    return decryptor.update(ciphertext) + decryptor.finalize()
+    return blowfish_cfb_decrypt(key, entry.iv, ciphertext)
 
 
 def _plaintext_checksum(entry: OdfEntry, plaintext: bytes) -> bytes:
@@ -371,7 +358,7 @@ def verify(entry: OdfEntry, password: str, ciphertext: bytes) -> bool:
     plaintext = _decrypt_cipher(entry, key, ciphertext)
     digest = _plaintext_checksum(entry, plaintext)
     # Full-width, constant-time compare -- a match is the correct password.
-    result = hmac.compare_digest(digest, entry.checksum)
+    result = compare_digest(digest, entry.checksum)
     logger.debug("ODF verify: %s (cipher=%s)", "pass" if result else "fail", entry.cipher)
     return result
 
@@ -406,7 +393,7 @@ def decrypt_entry(entry: OdfEntry, password: str, ciphertext: bytes, *, verify: 
         return _inflate(plaintext)
 
     plaintext = _decrypt_cipher(entry, key, ciphertext)
-    if verify and not hmac.compare_digest(_plaintext_checksum(entry, plaintext), entry.checksum):
+    if verify and not compare_digest(_plaintext_checksum(entry, plaintext), entry.checksum):
         msg = f"incorrect password for ODF member {entry.full_path!r}: checksum mismatch"
         raise ValueError(msg)
     return _inflate(plaintext)
