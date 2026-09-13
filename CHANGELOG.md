@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Detects Word, Excel, PowerPoint, OneNote, Outlook, Access, Visio, Project, and Publisher from internal OLE/OOXML streams
 - Extension fallback for encrypted OOXML files where stream inspection fails
+- `detect_product()` exported in the public API
 
 **Multi-file and directory input:**
 
@@ -33,22 +34,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Argon2id + AES-256-GCM decryption support via `argon2-cffi`
 
-**Research corpus:**
+**Crypto abstraction layer:**
 
-- Comprehensive research corpus integrated under `docs/research/`
+- `crypto/ciphers.py` — centralised cipher module; all `cryptography` library imports confined to this single file. Provides RC4 (pure-Python, RFC 6229-verified), AES-CBC/ECB/GCM, Blowfish-CFB, 3DES-CBC/ECB, RC2-CBC, DESX-CBC (per draft-ietf-ipsec-ciph-desx-00), and string-based agile dispatchers.
+- `crypto/hashes.py` — centralised hash/KDF module; all `argon2-cffi` imports confined here. Pure-Python MD4 (RFC 1320) and MD2 (RFC 1319), unified `digest()`/`new()` dispatch over hashlib + legacy hashes, PBKDF2-HMAC-SHA1, Argon2id, and `compare_digest`.
+- Protocol modules (`ecma376`, `odf`, `rc4legacy`, `protection`, etc.) import from `ciphers`/`hashes` instead of reaching into third-party libraries directly.
+
+**Public API exports:**
+
+- `FormatHandler`, `HandlerNotImplementedError`, and `detect_product` now exported from the top-level package
 
 ### Changed
 
 - CLI restructured from 7 top-level commands to 3: `info` absorbs `extract` (hash lines go to stdout automatically), `advanced` absorbs `decode`, `collide`, `bypass`, `decrypt`
-- TripleDES key expansion: 8/16-byte keys expanded to 24 bytes per `[MS-OFFCRYPTO]` instead of relying on deprecated `cryptography` auto-expansion
-- Per-file ruff ignores in `pyproject.toml` replace inline `# noqa` comments
+- Dropped `pycryptodome` dependency — sole usage (2-key 3DES-ECB in ULS password decode) replaced by `cryptography`'s TripleDES, which accepts 16-byte keys directly with identical output
+- Four independent RC4 implementations (`rc4legacy`, `msisam`, `uls`, `formats/access`) consolidated into one canonical pure-Python implementation in `ciphers.py`
+- All `hashlib` calls in production code routed through `hashes.digest()` or `hashes.new()` — `hashlib` now imported only in `hashes.py` and the algorithm-availability probe in `ecma376.py`
+- AES-ECB implementation switched from CBC(IV=0)+XOR workaround to direct ECB mode (the workaround avoided a ruff S305 warning that is now suppressed in the centralised cipher module)
+- Per-file ruff ignores in `pyproject.toml` audited and reduced from 8 entries to 6 — stale suppressions for `ecma376.py` removed after cipher code moved to `ciphers.py`
 - `pytest` treats `DeprecationWarning` as error
 
 ### Fixed
 
+- `_SCHEME_TO_TAG` missing `HashScheme.MSISAM` entry — MSISAM files rendered as `encrypted:open` instead of `encrypted:msisam` in CLI output
+- Operator precedence in `unified_odf_line` — `or` / ternary grouped correctly by accident but was fragile; explicit parentheses added
+- `_resolve_hash` return type narrowed to `_LegacyHashWrapper` but `hashes.new()` returns `hashlib._Hash` for standard algorithms — widened to correct union type
+- Type errors in `uls.py` (`bytearray` passed where `bytes` typed) and `ooxml.py` (redundant `None` check on `unified_protect_line_from_sid`)
+- `TypeError` used instead of `ValueError` for `isinstance` guard in ACE 2007 verifier (TRY004)
+- `__main__.py` missing `__name__` guard
+- Exception class in `extract`/`decrypt`/`bypass` docstrings referenced `NotImplementedError` instead of `HandlerNotImplementedError`
+- Dead code removed: `_UNSUPPORTED_ALGORITHMS` (protection.py), `_block_size_for` (ecma376.py), unreachable `len(blob)==0` guard (access.py), `_AES_BLOCK` constant (ciphers.py)
+- `Final` type annotations added to 7 constants in `formats/odf.py`
+- Missing comments and docstrings added across 5 crypto modules (~30 constants + 5 functions)
+- Duplicate comment block in `pyproject.toml` ruff per-file-ignores
 - ANSI escape sequences leaked into piped output (Rich now detects TTY before emitting control codes)
 - TripleDES deprecation warnings from `cryptography` library on short keys
-- Product detection for encrypted OOXML files that lack readable internal streams (extension fallback added)
 
 ## [0.1.0] - 2026-07-02
 
@@ -95,7 +115,7 @@ Initial release. `opt` triages a file, extracts crackable hashes, bypasses free 
 
 **Dependencies:**
 
-- `typer`, `rich`, `olefile`, `cryptography` (AES/RC4/Blowfish/hashes/PBKDF2), `typing-extensions` (`@override` backport for 3.11 floor)
+- `typer`, `rich`, `olefile`, `cryptography` (AES/Blowfish/3DES/RC2/hashes/PBKDF2), `typing-extensions` (`@override` backport for 3.11 floor), `argon2-cffi` (ODF 1.3 Argon2id KDF)
 
 ### Known limitations
 

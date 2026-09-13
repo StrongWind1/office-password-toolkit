@@ -29,7 +29,7 @@
 - **62 gates** — every password, protection, and permission mechanism across 11 products: document-open encryption, modify/edit restrictions, sheet/workbook/range/revisions protection, section locks, VBA project passwords, advisory CRC passwords, keyless body ciphers, and digital signatures
 - **Self-describing unified format** — `--format opt` emits four hash families (`$office$`, `$protect$`, `$odf$`, `$vba$`) that encode algorithm, key size, and all parameters in a single parseable line
 - **Hashcat integration** — `--format hashcat` (the default) emits hash lines ready for modes 9400, 9500, 9600, 9700, 9800, 25300, 18400, 18600, and 110
-- **Built-in decryption** — ECMA-376 standard and agile, RC4+MD5, RC4-CryptoAPI, XOR obfuscation, ODF 1.1 (Blowfish), ODF 1.2 (AES-256), and ODF 1.3 (Argon2id)
+- **Built-in decryption** — ECMA-376 standard and agile, RC4+MD5, RC4-CryptoAPI, XOR obfuscation, ODF 1.1 (Blowfish), ODF 1.2 (AES-256), ODF 1.3 (Argon2id + AES-GCM), and MSISAM (Microsoft Money)
 - **Default passwords tried automatically** — `VelvetSweatshop` and `/01Hannes Ruescher/01` are attempted before any user-supplied password
 - **Input never modified** — every writing command opens the input read-only and produces a new file
 - **Python API** — `import office_password_toolkit as opt; opt.detect("file.xlsx")` for programmatic access
@@ -42,13 +42,13 @@
 | Excel | `.xls` `.xlsb` | `.xlsx` `.xlsm` | open (XOR, RC4+MD5, RC4-CryptoAPI, ECMA-376 standard/agile), sheet, workbook, range, revisions, modify, VBA, signature |
 | PowerPoint | `.ppt` | `.pptx` `.pptm` | open (RC4-CryptoAPI, ECMA-376 standard/agile), modify, VBA, signature |
 | Visio | `.vsd` | `.vsdx` | open, VBA |
-| Project | `.mpp` | — | open |
+| Project | `.mpp` | — | open, write-reservation |
 | Publisher | `.pub` | — | open, VBA |
-| OneNote | — | `.one` | section-open (agile) |
-| Outlook | `.pst` `.ost` | — | advisory CRC-32 password, keyless body cipher |
-| Access | `.mdb` | `.accdb` | database password (Jet decode, ACE agile) |
+| OneNote | — | `.one` | section-open (agile, standard, RC4-CryptoAPI) |
+| Outlook | `.pst` `.ost` | — | advisory CRC-32 password, keyless body cipher (Permute/Cyclic) |
+| Access | `.mdb` `.mdw` | `.accdb` | database password (Jet 3/4 decode, ACE 2007 RC4-CryptoAPI, ACE 2010+ agile), User-Level Security (ULS) |
+| Money | `.mny` | — | MSISAM page encryption (MD5/SHA-1 + RC4) |
 | OpenDocument | — | `.odt` `.ods` `.odp` | open (Blowfish 1.1, AES-256 1.2, Argon2id 1.3), sheet/section protection |
-| LibreOffice Calc | — | `.ods` | sheet protection (SHA-1, SHA-256, SHA-512) |
 
 hashcat modes emitted: **9400** (Office 2003 standard), **9500** / **9600** (Office 2007-2019 agile), **9700** / **9800** (legacy RC4), **25300** (ISO protection), **18400** / **18600** (ODF), **110** (VBA SHA-1).
 
@@ -68,6 +68,32 @@ opt advanced decode legacy.xls                            # reverse keyless XOR 
 opt advanced collide mailbox.pst                          # mint a CRC-32 collision password
 opt advanced bypass budget.xlsx                           # strip all non-encrypting gates
 opt advanced decrypt secret.docx -p 'Passw0rd'           # decrypt with a known password
+```
+
+## Python API
+
+```python
+import office_password_toolkit as opt
+
+# detect container type and encryption status
+result = opt.detect("secret.xlsx")
+print(result.container, result.encrypted, result.product)
+
+# extract crackable hash lines
+hashes = opt.extract_hashes("secret.xlsx")
+for h in hashes:
+    print(h.value)  # $office$*2013*...
+
+# enumerate gates (protection mechanisms)
+handler = opt.handler_for(result.container)
+for gate in handler.gates("secret.xlsx"):
+    print(gate.display_name, gate.recovery)
+
+# decrypt with a known password
+opt.decrypt_file("secret.xlsx", "decrypted.xlsx", password="Passw0rd")
+
+# bypass removable protection (no password needed)
+opt.bypass_file("budget.xlsx", "unlocked.xlsx")
 ```
 
 ## Installation
@@ -92,21 +118,25 @@ cd office-password-toolkit
 uv sync
 ```
 
-## Quick start
+## Architecture
 
-```bash
-# 1. What protection does this file carry?
-opt info quarterly_report.xlsx
-
-# 2. Unlock everything automatically (decrypt + bypass + collide)
-opt unlock quarterly_report.xlsx -p 'Passw0rd'
-
-# 3. Extract a hash and crack it offline
-opt info quarterly_report.xlsx 2>/dev/null | hashcat -m 9600 -
-
-# 4. Strip all non-encrypting protection from a workbook
-opt advanced bypass quarterly_report.xlsx -o unlocked.xlsx
 ```
+src/office_password_toolkit/
+  detect.py / extract.py / decrypt.py / bypass.py    High-level API (detect -> dispatch to handler)
+  models.py / constants.py                           Enums, dataclasses, exit codes, magic bytes
+  cli/app.py                                         Typer CLI: info, unlock, advanced
+
+  formats/                                           Per-container handlers (OLE, OOXML, ODF, ...)
+    base.py                                          FormatHandler ABC
+    ole.py / ooxml.py / odf.py / ...                 Container-specific gate enumeration + operations
+
+  crypto/                                            Cryptographic primitives and protocol verifiers
+    ciphers.py                                       All cipher operations (sole cryptography import)
+    hashes.py                                        All hash/KDF operations (sole argon2-cffi import)
+    ecma376.py / rc4legacy.py / odf.py / ...         Format-specific KDFs, verifiers, and decryptors
+```
+
+Third-party crypto libraries are imported in exactly two files: `ciphers.py` (for `cryptography`) and `hashes.py` (for `argon2-cffi` and pure-Python MD4/MD2). All other modules access cipher and hash operations through these abstractions, so a library API change touches one file.
 
 ## Documentation
 
