@@ -55,9 +55,6 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-# AES block size in bytes (used for ECB-via-CBC trick and block alignment).
-_AES_BLOCK: Final = 16
-
 # DES key lengths for 3DES key expansion.
 _DES_KEY_LEN: Final = 8  # single DES key
 _TWO_KEY_LEN: Final = 16  # two-key 3DES (EDE2)

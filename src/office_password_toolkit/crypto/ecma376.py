@@ -158,7 +158,7 @@ def _hashlib_name(spec_name: str) -> str:
     """Resolve a spec algorithm string (e.g. ``"SHA-512"``) to a hashlib name.
 
     Returns the hashlib-compatible name for SHA-1/256/384/512 and MD5. Also accepts
-    MD4 and MD2 (handled by the toolkit's pure-Python fallback in ``_digest``).
+    MD4 and MD2 (handled by ``hashes.digest()``'s pure-Python fallback).
     Raises ``ValueError`` for unknown names.
     """
     key = spec_name.strip().upper().replace("-", "")
@@ -166,7 +166,7 @@ def _hashlib_name(spec_name: str) -> str:
     if name is None:
         msg = f"unknown hash algorithm {spec_name!r}"
         raise ValueError(msg)
-    # MD4/MD2 are handled by _digest's pure-Python fallback; skip the hashlib probe.
+    # MD4/MD2 are handled by hashes.digest()'s pure-Python fallback; skip the hashlib probe.
     if name in ("md4", "md2"):
         return name
     try:
