@@ -41,12 +41,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
-from cryptography.hazmat.decrepit.ciphers.algorithms import RC2 as _RC2Alg
-from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES as _TripleDES
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-
-from office_password_toolkit.crypto.legacy_hashes import md2 as _md2_digest
-from office_password_toolkit.crypto.legacy_hashes import md4 as _md4_digest
+from office_password_toolkit.crypto import ciphers, hashes
 
 logger = logging.getLogger(__name__)
 
@@ -158,19 +153,11 @@ class EncryptionInfo:
 
 # --- Low-level primitives -------------------------------------------------
 
-
-def _digest(hashlib_name: str, data: bytes) -> bytes:
-    """Hash ``data`` with the named algorithm and return the raw digest.
-
-    Uses hashlib for SHA-1/256/384/512 and MD5. Falls back to the toolkit's own
-    pure-Python implementations for MD4 and MD2, which are CNG-producible but
-    absent from most OpenSSL builds.
-    """
-    if hashlib_name == "md4":
-        return _md4_digest(data)
-    if hashlib_name == "md2":
-        return _md2_digest(data)
-    return hashlib.new(hashlib_name, data, usedforsecurity=False).digest()
+# Backward-compat aliases for callers that imported these private names from
+# ecma376 before they moved to ciphers/hashes. Removed once all callers switch.
+_aes_cbc_decrypt = ciphers.aes_cbc_decrypt
+_aes_cbc_encrypt = ciphers.aes_cbc_encrypt
+_digest = hashes.digest
 
 
 def _hashlib_name(spec_name: str) -> str:
@@ -208,142 +195,6 @@ def _fit(data: bytes, size: int) -> bytes:
     return data + bytes([_KDF_PAD_BYTE]) * (size - len(data))
 
 
-def _aes_cbc_decrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
-    """AES-CBC decrypt ``data`` ([MS-OFFCRYPTO] Section 2.3.4.13 agile verifier / key unwrap)."""
-    decryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
-    return decryptor.update(data) + decryptor.finalize()
-
-
-def _aes_cbc_encrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
-    """AES-CBC encrypt ``data`` ([MS-OFFCRYPTO] Section 2.3.4.13 verifier re-encryption compare)."""
-    encryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).encryptor()
-    return encryptor.update(data) + encryptor.finalize()
-
-
-def _aes_ecb_decrypt(key: bytes, data: bytes) -> bytes:
-    """AES-ECB decrypt ``data`` via one CBC(IV=0) pass plus a chaining fix-up.
-
-    The standard scheme mandates ECB ([MS-OFFCRYPTO] Section 2.3.4.9), but ECB
-    and CBC differ only in that CBC XORs each recovered block with the *previous
-    ciphertext* block. Running CBC with a zero IV and then XOR-ing that previous
-    block back out of every block after the first reproduces exact ECB output in
-    a single AES pass -- correct and fast for large packages.
-    """
-    decryptor = Cipher(algorithms.AES(key), modes.CBC(bytes(_AES_BLOCK))).decryptor()
-    plaintext = bytearray(decryptor.update(data) + decryptor.finalize())
-    for offset in range(_AES_BLOCK, len(plaintext), _AES_BLOCK):
-        previous = data[offset - _AES_BLOCK : offset]
-        block = plaintext[offset : offset + _AES_BLOCK]
-        plaintext[offset : offset + _AES_BLOCK] = bytes(a ^ b for a, b in zip(block, previous, strict=True))
-    return bytes(plaintext)
-
-
-def _aes_ecb_encrypt_block(key: bytes, block: bytes) -> bytes:
-    """AES-ECB encrypt a single 16-byte block via CBC with a zero IV.
-
-    For one block CBC(IV=0) reduces to ``E(plaintext)`` -- identical to ECB --
-    which is all the standard-scheme verifier re-encryption needs.
-    """
-    encryptor = Cipher(algorithms.AES(key), modes.CBC(bytes(_AES_BLOCK))).encryptor()
-    return encryptor.update(block) + encryptor.finalize()
-
-
-def _cipher_algorithm_obj(cipher_algorithm: str, key: bytes) -> algorithms.AES | _TripleDES | _RC2Alg:
-    """Return the ``cryptography`` algorithm object for the agile ``cipherAlgorithm`` name.
-
-    Maps the [MS-OFFCRYPTO] Section 2.3.4.10 ``cipherAlgorithm`` attribute to the
-    ``cryptography`` backend. DES and 3DES_112 (two-key triple-DES) are routed through
-    ``TripleDES`` with appropriately sized keys; DESX is handled separately in
-    :func:`_desx_cbc_decrypt` because it needs manual whitening layers.
-    """
-    name = cipher_algorithm.upper()
-    if name == "AES":
-        return algorithms.AES(key)
-    if name in ("3DES", "3DES_112", "DES"):
-        # Expand short keys to 24 bytes to silence TripleDES deprecation warnings:
-        # single DES (8 B) → key*3; two-key 3DES (16 B) → key + key[:DES_KEY_LEN]
-        _DES_KEY_LEN = 8
-        _TWO_KEY_LEN = 16
-        if len(key) == _DES_KEY_LEN:
-            key = key * 3
-        elif len(key) == _TWO_KEY_LEN:
-            key = key + key[:_DES_KEY_LEN]
-        return _TripleDES(key)
-    if name == "RC2":
-        return _RC2Alg(key)
-    msg = f"unsupported cipherAlgorithm {cipher_algorithm!r}"
-    raise ValueError(msg)
-
-
-def _cbc_decrypt(cipher_algorithm: str, key: bytes, iv: bytes, data: bytes) -> bytes:
-    """Decrypt ``data`` with the named agile cipher in CBC mode ([MS-OFFCRYPTO] Section 2.3.4.13)."""
-    name = cipher_algorithm.upper()
-    if name == "DESX":
-        return _desx_cbc_decrypt(key, iv, data)
-    algo = _cipher_algorithm_obj(cipher_algorithm, key)
-    decryptor = Cipher(algo, modes.CBC(iv)).decryptor()
-    return decryptor.update(data) + decryptor.finalize()
-
-
-def _cbc_encrypt(cipher_algorithm: str, key: bytes, iv: bytes, data: bytes) -> bytes:
-    """Encrypt ``data`` with the named agile cipher in CBC mode ([MS-OFFCRYPTO] Section 2.3.4.13)."""
-    name = cipher_algorithm.upper()
-    if name == "DESX":
-        return _desx_cbc_encrypt(key, iv, data)
-    algo = _cipher_algorithm_obj(cipher_algorithm, key)
-    encryptor = Cipher(algo, modes.CBC(iv)).encryptor()
-    return encryptor.update(data) + encryptor.finalize()
-
-
-def _desx_cbc_decrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
-    r"""DESX-CBC decrypt. DESX = K3 \xor DES_K1^{-1}(K2 \xor ciphertext).
-
-    The 24-byte key is split per the DESX construction: K1 (8 bytes, DES key),
-    K2 (8 bytes, pre-whitening XOR), K3 (8 bytes, post-whitening XOR). CBC
-    chaining XORs the previous ciphertext block into the plaintext after the
-    full DESX decrypt of each block. A new ``Cipher`` object is created per
-    block because ``cryptography`` has no native DESX mode and the whitening
-    must wrap each individual ECB call; this is a correctness-over-speed
-    trade-off acceptable for the small verifier payloads this path handles.
-    """
-    des_key = key[:8]
-    pre_whiten = key[8:16]
-    post_whiten = key[16:24]
-    block_size = 8
-    plaintext = bytearray()
-    prev = iv
-    for offset in range(0, len(data), block_size):
-        ct_block = data[offset : offset + block_size]
-        pre = bytes(a ^ b for a, b in zip(ct_block, post_whiten, strict=True))
-        decryptor = Cipher(_TripleDES(des_key * 3), modes.ECB()).decryptor()
-        mid = decryptor.update(pre) + decryptor.finalize()
-        pt_block = bytes(a ^ b for a, b in zip(mid, pre_whiten, strict=True))
-        pt_block = bytes(a ^ b for a, b in zip(pt_block, prev, strict=True))
-        plaintext += pt_block
-        prev = ct_block
-    return bytes(plaintext)
-
-
-def _desx_cbc_encrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
-    """DESX-CBC encrypt (inverse of ``_desx_cbc_decrypt``). Same per-block Cipher trade-off."""
-    des_key = key[:8]
-    pre_whiten = key[8:16]
-    post_whiten = key[16:24]
-    block_size = 8
-    ciphertext = bytearray()
-    prev = iv
-    for offset in range(0, len(data), block_size):
-        pt_block = data[offset : offset + block_size]
-        pre = bytes(a ^ b for a, b in zip(pt_block, prev, strict=True))
-        pre = bytes(a ^ b for a, b in zip(pre, pre_whiten, strict=True))
-        encryptor = Cipher(_TripleDES(des_key * 3), modes.ECB()).encryptor()
-        mid = encryptor.update(pre) + encryptor.finalize()
-        ct_block = bytes(a ^ b for a, b in zip(mid, post_whiten, strict=True))
-        ciphertext += ct_block
-        prev = ct_block
-    return bytes(ciphertext)
-
-
 # --- Key derivation -------------------------------------------------------
 
 
@@ -356,14 +207,14 @@ def _derive_key_standard(password: str, salt: bytes, key_bits: int) -> bytes:
     little-endian and the salt is hashed *before* the password.
     """
     pw = password.encode("utf-16-le")  # UTF-16LE, no BOM, no NUL
-    h = _digest("sha1", salt + pw)  # H0
+    h = hashes.digest("sha1", salt + pw)  # H0
     for i in range(_STANDARD_SPIN_COUNT):
-        h = _digest("sha1", i.to_bytes(4, "little") + h)  # LE32(i) prepended
-    h_final = _digest("sha1", h + (0).to_bytes(4, "little"))  # append block number 0
+        h = hashes.digest("sha1", i.to_bytes(4, "little") + h)  # LE32(i) prepended
+    h_final = hashes.digest("sha1", h + (0).to_bytes(4, "little"))  # append block number 0
     # ipad/opad key expansion: XOR the 20-byte Hfinal into 64-byte pad buffers.
     inner = bytes((_IPAD ^ h_final[i]) if i < _SHA1_SIZE else _IPAD for i in range(_HMAC_BLOCK))
     outer = bytes((_OPAD ^ h_final[i]) if i < _SHA1_SIZE else _OPAD for i in range(_HMAC_BLOCK))
-    expanded = _digest("sha1", inner) + _digest("sha1", outer)  # X1 || X2 (40 bytes)
+    expanded = hashes.digest("sha1", inner) + hashes.digest("sha1", outer)  # X1 || X2 (40 bytes)
     return expanded[: key_bits // 8]
 
 
@@ -376,9 +227,9 @@ def _iterate_agile_hash(password: str, salt: bytes, hashlib_name: str, spin_coun
     key (verifier input, verifier value, and the intermediate/bulk key).
     """
     pw = password.encode("utf-16-le")  # UTF-16LE, no BOM, no NUL
-    h = _digest(hashlib_name, salt + pw)  # H0
+    h = hashes.digest(hashlib_name, salt + pw)  # H0
     for i in range(spin_count):
-        h = _digest(hashlib_name, i.to_bytes(4, "little") + h)  # LE32(i) prepended
+        h = hashes.digest(hashlib_name, i.to_bytes(4, "little") + h)  # LE32(i) prepended
     return h
 
 
@@ -388,7 +239,7 @@ def _finalize_agile_key(iterated: bytes, block_key: bytes, hashlib_name: str, ke
     ``Hfinal = H(Hspin || blockKey)``; take the first ``keyBits/8`` bytes,
     right-padding with ``0x36`` when the digest is shorter than the key.
     """
-    h = _digest(hashlib_name, iterated + block_key)  # append the 8-byte block key
+    h = hashes.digest(hashlib_name, iterated + block_key)  # append the 8-byte block key
     key_len = key_bits // 8
     if len(h) >= key_len:
         return h[:key_len]
@@ -409,9 +260,9 @@ def _verify_standard(info: EncryptionInfo, password: str) -> bool:
     the hash line carries.
     """
     key = _derive_key_standard(password, info.salt, info.key_bits)
-    verifier = _aes_ecb_decrypt(key, info.enc_verifier)  # 16-byte Verifier
-    calc = _digest("sha1", verifier)  # SHA1(Verifier), 20 bytes
-    reencrypted = _aes_ecb_encrypt_block(key, calc[:_AES_BLOCK])
+    verifier = ciphers.aes_ecb_decrypt(key, info.enc_verifier)  # 16-byte Verifier
+    calc = hashes.digest("sha1", verifier)  # SHA1(Verifier), 20 bytes
+    reencrypted = ciphers.aes_ecb_encrypt_block(key, calc[:_AES_BLOCK])
     return reencrypted == info.enc_verifier_hash[:_AES_BLOCK]
 
 
@@ -432,9 +283,9 @@ def _verify_agile(info: EncryptionInfo, password: str) -> bool:
     key_value = _finalize_agile_key(iterated, _BLOCK_KEY_VERIFIER_VALUE, hashlib_name, info.key_bits)
     iv = _fit(info.salt, info.block_size)
     block = info.block_size
-    verifier = _cbc_decrypt(cipher, key_input, iv, info.enc_verifier)
-    computed = _digest(hashlib_name, verifier)
-    reencrypted = _cbc_encrypt(cipher, key_value, iv, computed[:block])
+    verifier = ciphers.cbc_decrypt(cipher, key_input, iv, info.enc_verifier)
+    computed = hashes.digest(hashlib_name, verifier)
+    reencrypted = ciphers.cbc_encrypt(cipher, key_value, iv, computed[:block])
     return reencrypted[:block] == info.enc_verifier_hash[:block]
 
 
@@ -708,7 +559,7 @@ def _decrypt_package_standard(info: EncryptionInfo, password: str, encrypted_pac
     r"""Decrypt a standard-scheme ``\EncryptedPackage`` (Section 2.3.4.4/2.3.4.9)."""
     key = _derive_key_standard(password, info.salt, info.key_bits)
     declared_size = int.from_bytes(encrypted_package[:_STREAM_SIZE_PREFIX], "little")
-    plaintext = _aes_ecb_decrypt(key, encrypted_package[_STREAM_SIZE_PREFIX:])
+    plaintext = ciphers.aes_ecb_decrypt(key, encrypted_package[_STREAM_SIZE_PREFIX:])
     return plaintext[:declared_size]
 
 
@@ -726,7 +577,7 @@ def _decrypt_package_agile(info: EncryptionInfo, password: str, encrypted_packag
     hashlib_name = _hashlib_name(info.hash_algorithm)
     iterated = _iterate_agile_hash(password, info.salt, hashlib_name, info.spin_count)
     wrap_key = _finalize_agile_key(iterated, _BLOCK_KEY_INTERMEDIATE, hashlib_name, info.key_bits)
-    bulk_key = _cbc_decrypt(cipher, wrap_key, _fit(info.salt, info.block_size), info.enc_key_value)
+    bulk_key = ciphers.cbc_decrypt(cipher, wrap_key, _fit(info.salt, info.block_size), info.enc_key_value)
     key_data_cipher = info.key_data_cipher_algorithm or cipher
     key_data_hash = _hashlib_name(info.key_data_hash_algorithm or info.hash_algorithm)
     block_size = info.key_data_block_size or info.block_size
@@ -735,8 +586,8 @@ def _decrypt_package_agile(info: EncryptionInfo, password: str, encrypted_packag
     plaintext = bytearray()
     for segment, offset in enumerate(range(0, len(data), _SEGMENT_SIZE)):
         chunk = data[offset : offset + _SEGMENT_SIZE]
-        segment_iv = _fit(_digest(key_data_hash, info.key_data_salt + segment.to_bytes(4, "little")), block_size)
-        plaintext += _cbc_decrypt(key_data_cipher, bulk_key, segment_iv, chunk)
+        segment_iv = _fit(hashes.digest(key_data_hash, info.key_data_salt + segment.to_bytes(4, "little")), block_size)
+        plaintext += ciphers.cbc_decrypt(key_data_cipher, bulk_key, segment_iv, chunk)
     return bytes(plaintext[:declared_size])
 
 
