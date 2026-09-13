@@ -93,30 +93,18 @@ convention = "google"
 # The two default passwords are public, spec-documented constants -- not secrets.
 "src/office_password_toolkit/constants.py" = ["S105"]
 # Typer maps each CLI option to a function parameter, so command signatures
-# legitimately exceed the positional-argument-count limit; the rule does not fit them.
-# BLE001: the verify command catches broad Exception from olefile/zipfile because
-# corrupt/malformed files can raise any exception type -- the point of verify is
-# to test whether the file is structurally valid, so catching broadly IS the logic.
+# legitimately exceed the positional-argument-count limit. BLE001: the verify
+# command catches broad Exception from olefile/zipfile because corrupt files can
+# raise any exception type -- the point of verify is to test structural validity.
 "src/office_password_toolkit/cli/app.py" = ["PLR0913", "BLE001", "C901", "PLR0912"]
 # Access handler: gate enumeration branches by engine × encryption-info, which
 # unavoidably exceeds return-count and complexity limits; TRY004 fires on a guard
-# that raises ValueError for dict values with wrong runtime types (not statically
-# inferrable from dict[str, int|bytes|str]).
+# that raises ValueError for dict values with wrong runtime types.
 "src/office_password_toolkit/formats/access.py" = ["PLR0911", "PLR0912", "C901", "TRY004"]
-# ecma376.py crypto module needs these suppressions for spec-mandated constructs:
-#   N811  -- RC2/TripleDES are imported as _RC2Alg/_TripleDES to distinguish them
-#            from the algorithm-name strings the spec uses; ruff sees the rename as
-#            "constant imported as non-constant" but they are types, not constants.
-#   N806  -- DES key-length constants (_DES_KEY_LEN, _TWO_KEY_LEN) inside a function
-#            are uppercase because they are fixed crypto constants, not loop variables.
-#   S305  -- ECB mode is intentionally used for DESX whitening (per [MS-OFFCRYPTO]
-#            Section 2.3.4.10 DESX construction) where the manual CBC chaining wraps
-#            individual ECB calls with XOR whitening layers. Not a misuse of ECB.
-"src/office_password_toolkit/crypto/ecma376.py" = ["N811", "N806", "S305"]
-# ciphers.py is the centralised cipher module: ECB mode is intentionally used
-# for 3DES-ECB (Jet ULS password decode) and DESX whitening (per [MS-OFFCRYPTO]
-# Section 2.3.4.10). N811 fires on the _Blowfish/_RC2/_TripleDES import renames.
-"src/office_password_toolkit/crypto/ciphers.py" = ["S305", "N811"]
+# ciphers.py: ECB mode is required by the formats this toolkit decrypts (AES-ECB
+# per [MS-OFFCRYPTO] Section 2.3.4.9, 3DES-ECB for Jet ULS password decode, and
+# DESX whitening per draft-ietf-ipsec-ciph-desx-00). Not a misuse of ECB.
+"src/office_password_toolkit/crypto/ciphers.py" = ["S305"]
 # hashes.py: argon2id() wraps the Argon2 spec's 6 parameters (keyword-only).
 "src/office_password_toolkit/crypto/hashes.py" = ["PLR0913"]
 
