@@ -38,9 +38,12 @@ flowchart TD
     ON_H["OneNoteHandler"]
     PST_H["OutlookHandler"]
     ACC_H["AccessHandler"]
+    MDW_H["MdwHandler"]
   end
 
   subgraph CRYPTO["Layer 5: Crypto Modules (crypto/)"]
+    CIPH["ciphers.py\n(sole cryptography import)"]
+    HASH["hashes.py\n(sole argon2-cffi import,\npure-Python MD4/MD2)"]
     E376["ecma376.py"]
     RC4["rc4legacy.py"]
     XOR["xor.py"]
@@ -48,7 +51,9 @@ flowchart TD
     ODF_C["odf.py"]
     VBA["vba.py"]
     PST_C["pst.py"]
-    LEG["legacy_hashes.py"]
+    MPP["mpp.py"]
+    MSISAM["msisam.py"]
+    ULS["uls.py"]
   end
 
   CLI --> FACADES
@@ -59,7 +64,7 @@ flowchart TD
 
 **Import rule:** each layer imports only from the layers below it — never upward.
 
-- `crypto/` imports only stdlib + `cryptography` + `olefile`
+- `crypto/` protocol modules import from `ciphers.py` and `hashes.py`, which are the sole importers of `cryptography` and `argon2-cffi`. No module imports `pycryptodome` (dropped). `hashlib` is imported only in `hashes.py` and the algorithm-availability probe in `ecma376.py`.
 - `formats/` imports from `crypto/`, `formats.base`, `models`
 - `detect` imports from `formats` (one-directional — handlers never import `detect`)
 - Facades import from `detect` and `formats`
@@ -68,10 +73,20 @@ flowchart TD
 **Handler registry:** `formats/__init__.py` instantiates one handler per `ContainerKind` and provides `handler_for(container)`:
 
 ```python
-_HANDLERS = {h.container: h for h in (
-    OleHandler(), OoxmlHandler(), OdfHandler(),
-    OneNoteHandler(), OutlookHandler(), AccessHandler(),
-)}
+_HANDLERS = {
+    h.container: h
+    for h in (
+        OleHandler(),
+        OoxmlHandler(),
+        OdfHandler(),
+        OneNoteHandler(),
+        OutlookHandler(),
+        AccessHandler(),
+        MdwHandler(),
+    )
+}
+
+
 def handler_for(container: ContainerKind) -> FormatHandler | None:
     return _HANDLERS.get(container)
 ```
@@ -146,8 +161,11 @@ flowchart LR
     PST_F[".pst .ost .nst"]
   end
   subgraph ACC_H["AccessHandler"]
-    MDB[".mdb .mde .mda .mdw"]
+    MDB[".mdb .mde .mda"]
     ACCDB[".accdb .accde .accdt .accdr .accda"]
+  end
+  subgraph MDW_H2["MdwHandler"]
+    MDW_F[".mdw .mda (workgroup)"]
   end
 ```
 
@@ -155,12 +173,13 @@ flowchart LR
 
 | Handler | Crypto modules used |
 |---|---|
-| `OleHandler` | `ecma376`, `rc4legacy`, `xor`, `vba` |
+| `OleHandler` | `ecma376`, `rc4legacy`, `xor`, `vba`, `mpp` |
 | `OoxmlHandler` | `protection`, `vba` |
 | `OdfHandler` | `odf` |
-| `OneNoteHandler` | `ecma376` |
+| `OneNoteHandler` | `ecma376`, `rc4legacy` |
 | `OutlookHandler` | `pst` |
-| `AccessHandler` | `ecma376`, `vba` |
+| `AccessHandler` | `ecma376`, `rc4legacy`, `msisam`, `vba` |
+| `MdwHandler` | `uls` |
 
 ### Proposed handler additions
 
@@ -179,19 +198,25 @@ Each module is **pure functions** operating on bytes/parameters. No filesystem a
 
 ```mermaid
 flowchart TD
+  subgraph FOUNDATION["🔵 Foundation (crypto isolation layer)"]
+    CIPH["ciphers.py\n• RC4 (pure Python, RFC 6229)\n• AES-CBC/ECB/GCM\n• Blowfish-CFB, 3DES, RC2\n• DESX-CBC (draft-ietf-ipsec-ciph-desx-00)\n• Sole cryptography import"]
+    HASH["hashes.py\n• MD4 (RFC 1320), MD2 (RFC 1319)\n• Unified digest()/new() dispatch\n• PBKDF2, Argon2id\n• Sole argon2-cffi import"]
+  end
   subgraph ENC["🔴 Document Encryption"]
     E376["ecma376.py\n• Standard KDF (SHA-1×50k)\n• Agile KDF (any hash/cipher)\n• EncryptionInfo parser\n• Package decryptor"]
     RC4["rc4legacy.py\n• RC4+MD5 KDF (40-bit)\n• RC4+SHA-1 CryptoAPI KDF\n• Header parser\n• Stream decryptor"]
     ODF_C["odf.py\n• SHA-1/SHA-256 start key\n• PBKDF2-HMAC-SHA1\n• Blowfish-CFB / AES-CBC / AES-GCM\n• Argon2id\n• Manifest parser"]
+    MSISAM["msisam.py\n• MD5/SHA-1 + RC4 page encryption\n• Microsoft Money 2002+"]
   end
   subgraph PROT["🟡 Protection Verifiers"]
-    PROTM["protection.py\n• ISO §2.4.2.4 hash (10 algos)\n• Word 2007 three-stage KDF\n• All carrier elements"]
+    PROTM["protection.py\n• ISO §2.4.2.4 hash (7 algos)\n• Word 2007 three-stage KDF\n• All carrier elements"]
     VBAM["vba.py\n• DPB/CMG/GC codec\n• SHA-1(pw||key) verifier\n• Unprotected-state writer"]
   end
   subgraph DECODE["🟢 Decode / Collide"]
     XORM["xor.py\n• Method 1/2 verifiers\n• XOR array construction\n• Known-plaintext decode\n• Password reconstruction"]
-    PSTM["pst.py\n• CRC-32 (custom seed-0)\n• CRC-32 collision (Gauss elim)\n• Permute cipher (mpbbI table)\n• Cyclic cipher (BID-keyed)"]
-    LEGM["legacy_hashes.py\n• Pure-Python MD4\n• Pure-Python MD2"]
+    PSTM["pst.py\n• CRC-32 (RFC 1952, custom seed-0)\n• CRC-32 collision (Gauss elim)\n• Permute cipher (mpbbI table)\n• Cyclic cipher (BID-keyed)"]
+    MPPM["mpp.py\n• Props parser\n• XOR+permutation decode"]
+    ULSM["uls.py\n• 3DES password decode\n• Workgroup identity\n• PID recovery\n• MDW file parser"]
   end
 ```
 
@@ -212,7 +237,11 @@ flowchart TD
 | `vba.py` | VBA Project Password | [MS-OVBA] §2.4.3–4 | `sha1hex:keyhex` (mode 110) |
 | `pst.py` | PST CRC-32 | [MS-PST] §5.3 | — (collide/strip, no hashcat) |
 | `pst.py` | PST Body Cipher | [MS-PST] §5.1–2 | — (decode, no hashcat) |
-| `legacy_hashes.py` | MD4 / MD2 | RFC 1320 / RFC 1319 | — (support for protection.py) |
+| `mpp.py` | MPP Props XOR Decode | MPXJ reverse-engineering | — (decode, no hashcat) |
+| `msisam.py` | MSISAM MD5/SHA-1 + RC4 | Jackcess MSISAMCryptCodecHandler | `$msisam$...` (no hashcat mode) |
+| `uls.py` | Jet ULS 3DES Password | Reversed from msjet40.dll | — (decode, no hashcat) |
+| `hashes.py` | MD4 / MD2 | RFC 1320 / RFC 1319 | — (support for ecma376/protection) |
+| `ciphers.py` | RC4, AES, Blowfish, 3DES, RC2, DESX | RFC 6229 / NIST SP 800-38A / draft-ietf-ipsec-ciph-desx-00 | — (primitives for protocol modules) |
 
 ### Hash line emission
 
@@ -241,7 +270,7 @@ flowchart LR
 
 | Step | RecoveryClass | Toolkit function | What it does |
 |---|---|---|---|
-| 1 | `DEFAULT` | `defaults.try_defaults()` | Try known fixed passwords |
+| 1 | `DEFAULT` | `default_passwords()` | Try known fixed passwords |
 | 2 | `READ` | `handler.gates()` → Gate.recovery == READ | Report cleartext password location |
 | 3 | `DECODE` | `xor.decode()`, `pst.decode_block()`, `vba.decode_dpb()` | Reverse obfuscation |
 | 4 | `BYPASS` | `handler.bypass()` | Write unprotected copy |
@@ -318,10 +347,10 @@ flowchart LR
 
 | Class | Fields | Purpose |
 |---|---|---|
-| `ContainerKind` (StrEnum, 7) | `OLE_CFB`, `OOXML_ZIP`, `ODF_ZIP`, `ONENOTE`, `PST`, `ACCESS`, `UNKNOWN` | Physical container type (by magic bytes) |
+| `ContainerKind` (StrEnum, 8) | `OLE_CFB`, `OOXML_ZIP`, `ODF_ZIP`, `ONENOTE`, `PST`, `ACCESS`, `ACCESS_MDW`, `UNKNOWN` | Physical container type (by magic bytes) |
 | `GateType` (StrEnum, 12) | `OPEN`, `MODIFY`, `PROTECT_SHEET`, `PROTECT_WORKBOOK`, `RESTRICT_EDIT`, `ALLOW_EDIT_RANGES`, `SHARED_REVISIONS`, `SECTION`, `VBA_PROJECT`, `SIGNATURE`, `IRM`, `MAIL_BODY` | What the password protects |
 | `RecoveryClass` (StrEnum, 10) | `DEFAULT`, `READ`, `DECODE`, `BYPASS`, `STRIP`, `COLLIDE`, `DECRYPT`, `KEYSPACE`, `CRACK`, `NONE` | How to recover (ordered cheapest-first) |
-| `HashScheme` (StrEnum, 13) | See §6 table | Which hash-line format to emit |
+| `HashScheme` (StrEnum, 9) | `OFFICE_2007`, `OFFICE_2010`, `OFFICE_2013`, `OLDOFFICE_RC4_MD5`, `OLDOFFICE_RC4_SHA1`, `OFFICE_SHEETPROT`, `ODF`, `VBA_SHA1`, `MSISAM` | Which hash-line format to emit |
 | `Gate` (frozen dataclass) | `gate`, `recovery`, `scheme`, `hashcat_mode`, `where`, `note` | One permission gate found in a file |
 | `ExtractedHash` (frozen dataclass) | `scheme`, `hashcat_mode`, `value`, `gate`, `opt_value` | One crackable hash extracted |
 | `DetectResult` (frozen dataclass) | `path`, `container`, `extension`, `encrypted`, `gates` | Detection + gate enumeration result |
@@ -381,12 +410,12 @@ The existing `unified_*_line()` emitters in each crypto module already produce t
 | `formats/word.md` | `OleHandler`, `OoxmlHandler` | `ecma376`, `rc4legacy`, `xor`, `protection`, `vba` |
 | `formats/excel.md` | `OleHandler`, `OoxmlHandler` | `ecma376`, `rc4legacy`, `xor`, `protection`, `vba` |
 | `formats/powerpoint.md` | `OleHandler`, `OoxmlHandler` | `ecma376`, `rc4legacy`, `protection`, `vba` |
-| `formats/onenote.md` | `OneNoteHandler` | `ecma376` |
+| `formats/onenote.md` | `OneNoteHandler` | `ecma376`, `rc4legacy` |
 | `formats/outlook.md` | `OutlookHandler` | `pst` |
-| `formats/access.md` | `AccessHandler` | `ecma376`, `vba` |
+| `formats/access.md` | `AccessHandler`, `MdwHandler` | `ecma376`, `rc4legacy`, `msisam`, `vba`, `uls` |
 | `formats/opendocument.md` | `OdfHandler` | `odf` |
 | `formats/visio.md` | `OleHandler`, `OoxmlHandler` | `ecma376`, `rc4legacy`, `vba` |
-| `formats/project.md` | `OleHandler` | `vba` (open password OUT-OF-CORPUS) |
+| `formats/project.md` | `OleHandler` | `mpp`, `vba` |
 | `formats/publisher.md` | `OleHandler` | `vba` |
 | `formats/infopath.md` | — | — (no encryption) |
 
@@ -394,20 +423,20 @@ The existing `unified_*_line()` emitters in each crypto module already produce t
 
 | Algorithm doc | Crypto function | Emitter |
 |---|---|---|
-| `algorithms/password/ecma376-agile.md` | `ecma376.verify_agile()` | `ecma376.agile_hashcat_line()` |
-| `algorithms/password/ecma376-standard.md` | `ecma376.verify_standard()` | `ecma376.standard_hashcat_line()` |
-| `algorithms/password/rc4-cryptoapi-sha1.md` | `rc4legacy.verify_rc4_cryptoapi()` | `rc4legacy.cryptoapi_hashcat_line()` |
-| `algorithms/password/rc4-md5-legacy.md` | `rc4legacy.verify_rc4_md5()` | `rc4legacy.md5_hashcat_line()` |
-| `algorithms/password/xor-obfuscation.md` | `xor.create_password_verifier_method1()` | — (decode, not hash) |
-| `algorithms/password/iso-protection-hash.md` | `protection.verify_iso()` | `protection.sheetprot_hashcat_line()` |
-| `algorithms/password/word2007-documentprotection.md` | `protection.verify_word2007()` | `protection.word2007_line()` |
-| `algorithms/password/odf-encryption.md` | `odf.verify_odf()` | `odf.odf_hashcat_line()` |
-| `algorithms/password/vba-project-password.md` | `vba.verify_vba_password()` | `vba.vba_hashcat_line()` |
-| `algorithms/password/pst-crc32.md` | `pst.crc32_password()` | — (collide, not hash) |
-| `algorithms/non-password/pst-body-cipher.md` | `pst.decode_permute()`, `pst.decode_cyclic()` | — (decode) |
+| `algorithms/password/ecma376-agile.md` | `ecma376.verify_password()` | `ecma376.office_hash_line()` / `ecma376.unified_office_line()` |
+| `algorithms/password/ecma376-standard.md` | `ecma376.verify_password()` | `ecma376.office_hash_line()` / `ecma376.unified_office_line()` |
+| `algorithms/password/rc4-cryptoapi-sha1.md` | `rc4legacy.rc4_cryptoapi_verify()` | `rc4legacy.rc4_cryptoapi_hash_line()` / `rc4legacy.unified_rc4_office_line()` |
+| `algorithms/password/rc4-md5-legacy.md` | `rc4legacy.rc4_md5_verify()` | `rc4legacy.rc4_md5_hash_line()` / `rc4legacy.unified_rc4_office_line()` |
+| `algorithms/password/xor-obfuscation.md` | `xor.password_verifier_method1()` | — (decode, not hash) |
+| `algorithms/password/iso-protection-hash.md` | `protection.verify()` | `protection.hash_line_25300()` / `protection.unified_protect_line()` |
+| `algorithms/password/word2007-documentprotection.md` | `protection.word2007_protection_verify()` | `protection.unified_protect_line_from_sid()` |
+| `algorithms/password/odf-encryption.md` | `odf.verify()` | `odf.odf_hash_line()` / `odf.unified_odf_line()` |
+| `algorithms/password/vba-project-password.md` | `vba.password_hash()` | `vba.extract_vba_hash()` / `vba.unified_vba_line()` |
+| `algorithms/password/pst-crc32.md` | `pst.password_crc()` | — (collide, not hash) |
+| `algorithms/non-password/pst-body-cipher.md` | `pst.permute_decode()`, `pst.cyclic_decode()` | — (decode) |
 | `algorithms/non-password/irm-rms-encryption.md` | — | — (NONE) |
 | `algorithms/non-password/digital-signatures.md` | — | — (STRIP) |
-| `algorithms/non-password/access-jet-obfuscation.md` | `access.decode_jet_password()` | — (decode) |
+| `algorithms/non-password/access-jet-obfuscation.md` | `AccessHandler._decode_jet3()` / `._decode_jet4()` | — (decode) |
 
 ### Hashcat design → code
 
@@ -422,7 +451,7 @@ The existing `unified_*_line()` emitters in each crypto module already produce t
 
 | fast_recovery doc | Toolkit command | Toolkit function |
 |---|---|---|
-| `defaults.md` | `opt unlock` (step 1, auto) | `defaults.try_defaults()` |
+| `defaults.md` | `opt unlock` (step 1, auto) | `default_passwords()` |
 | `cleartext.md` | `opt info` (reports location on stderr) | `OleHandler.gates()` → Gate with READ |
 | `decode.md` | `opt unlock` (step 3, auto) / `opt advanced decode` | `xor.decode_document()`, `pst.decode_block()`, `vba.decode_dpb()`, `access.decode_jet_password()` |
 | `strip.md` | `opt unlock` (step 4-5, auto) / `opt advanced bypass` | `handler.bypass()` → writes stripped copy |
