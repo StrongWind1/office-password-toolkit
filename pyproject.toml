@@ -98,9 +98,8 @@ convention = "google"
 # raise any exception type -- the point of verify is to test structural validity.
 "src/office_password_toolkit/cli/app.py" = ["PLR0913", "BLE001", "C901", "PLR0912"]
 # Access handler: gate enumeration branches by engine × encryption-info, which
-# unavoidably exceeds return-count and complexity limits; TRY004 fires on a guard
-# that raises ValueError for dict values with wrong runtime types.
-"src/office_password_toolkit/formats/access.py" = ["PLR0911", "PLR0912", "C901", "TRY004"]
+# unavoidably exceeds return-count and complexity limits.
+"src/office_password_toolkit/formats/access.py" = ["PLR0911", "PLR0912", "C901"]
 # ciphers.py: ECB mode is required by the formats this toolkit decrypts (AES-ECB
 # per [MS-OFFCRYPTO] Section 2.3.4.9, 3DES-ECB for Jet ULS password decode, and
 # DESX whitening per draft-ietf-ipsec-ciph-desx-00). Not a misuse of ECB.

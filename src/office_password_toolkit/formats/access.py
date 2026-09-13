@@ -747,7 +747,7 @@ def _decrypt_ace_2007(path: Path, out: Path, password: str, header: AccessHeader
     enc_verifier_hash = parsed["encrypted_verifier_hash"]
     if not isinstance(salt, bytes) or not isinstance(enc_verifier, bytes) or not isinstance(enc_verifier_hash, bytes):
         msg = "ACE 2007 EncryptionInfo contains unexpected field types"
-        raise ValueError(msg)
+        raise TypeError(msg)
     if not rc4_cryptoapi_verify(password, salt, key_bits, enc_verifier, enc_verifier_hash):
         msg = "incorrect password: RC4 CryptoAPI verifier check failed"
         raise ValueError(msg)
