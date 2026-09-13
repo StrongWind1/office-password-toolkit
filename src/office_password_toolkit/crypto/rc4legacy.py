@@ -41,6 +41,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
+from office_password_toolkit.crypto.ciphers import rc4 as rc4_crypt
+
 logger = logging.getLogger(__name__)
 
 # --- Shared constants ---
@@ -106,34 +108,6 @@ class Rc4Scheme(StrEnum):
 
     MD5 = "rc4-md5"  # Office 97/2000, MD5 KDF, 40-bit key (Section 2.3.6).
     CRYPTOAPI = "rc4-cryptoapi"  # Office XP/2003, SHA-1 KDF, 40- or 128-bit key (Section 2.3.5).
-
-
-# --- Standard RC4 primitive ---
-
-
-def rc4_crypt(key: bytes, data: bytes) -> bytes:
-    """Encrypt or decrypt ``data`` under RC4 with ``key`` (symmetric, so both directions are one call).
-
-    Pure-Python textbook RC4 (KSA + PRGA). Accepts any key length from 1 to 256
-    bytes, unlike the ``cryptography`` library which rejects intermediate sizes
-    such as 48-bit (6-byte) keys that [MS-OFFCRYPTO] CryptoAPI documents allow.
-    """
-    # KSA (Key Scheduling Algorithm)
-    s = list(range(256))
-    j = 0
-    for i in range(256):
-        j = (j + s[i] + key[i % len(key)]) & 0xFF
-        s[i], s[j] = s[j], s[i]
-
-    # PRGA (Pseudo-Random Generation Algorithm)
-    out = bytearray(len(data))
-    i = j = 0
-    for idx in range(len(data)):
-        i = (i + 1) & 0xFF
-        j = (j + s[i]) & 0xFF
-        s[i], s[j] = s[j], s[i]
-        out[idx] = data[idx] ^ s[(s[i] + s[j]) & 0xFF]
-    return bytes(out)
 
 
 # --- RC4 + MD5, 40-bit (Office 97/2000, $oldoffice$0 / $oldoffice$1) ---
