@@ -43,6 +43,8 @@ analysis/
       digital-signatures.md     CryptoAPI / XAdES / PKCS#7 (PKI integrity — strip only)
       pst-body-cipher.md        PST NDB permute/cyclic (keyless obfuscation — decode directly)
       access-jet-obfuscation.md Jet .mdb fixed-key/date-key XOR (instant decode)
+      msisam-encryption.md      MSISAM page encryption — Money 2002+ (MD5/SHA-1 + RC4)
+      uls-workgroup-security.md Jet ULS workgroup password/identity decode — .mdw (3DES fixed key)
 
   _research/                 raw OpenSpec documents and search data (source material for later analysis)
 ```

@@ -26,8 +26,10 @@
 | **OpenDocument** `.odt`/`.ods`/`.odp` | 🔴 | — | 🟡 | — | — | — | — |
 | **Visio** `.vsd` | 🔴 | — | — | — | 🟡 | ⚪ | — |
 | **Visio** `.vsdx` | 🔴 | — | — | — | 🟡 | ⚪ | — |
-| **Project** `.mpp` | 🔴† | 🟡† | — | — | 🟡 | — | — |
+| **Project** `.mpp` | 🟢† | 🟢† | — | — | 🟡 | — | — |
 | **Publisher** `.pub` | —† | — | — | — | 🟡 | — | — |
+| **Money** `.mny` | 🔴† | — | — | — | — | — | — |
+| **Access** `.mdw` | 🟢† | — | — | — | — | — | — |
 | **InfoPath** `.xsn` | — | — | — | — | — | ⚪ | — |
 
 - 🔴🟢 on `.doc`/`.xls` = XOR obfuscation (🟢 reversible) coexists with RC4 encryption (🔴 real) — the scheme depends on the file's encryption flags
@@ -70,6 +72,8 @@ Which algorithms are used by which products. ✓ = used, — = not applicable.
 | 🟢 Cleartext Passwords | ✓ | — | — | — | ✓ | — | — | — | — | — | — |
 | 🟢 PST CRC-32 | — | — | — | — | — | — | — | ✓ | — | — | — |
 | 🟢 Jet XOR (fixed/date key) | — | — | — | — | — | — | — | — | ✓ | — | — |
+| 🟢 ULS 3DES (fixed key) | — | — | — | — | — | — | — | — | — | — | — |
+| 🔴 MSISAM (MD5/SHA-1 + RC4) | — | — | — | — | — | — | — | — | — | — | — |
 | ⚪ PST Body Cipher (keyless) | — | — | — | — | — | — | — | ✓ | — | — | — |
 | ⚪ IRM / RMS (certificate) | ✓ | ✓ | ✓ | ✓ | — | — | — | — | — | — | — |
 | ⚪ Digital Signatures (PKI) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — | — | — |
@@ -145,6 +149,16 @@ flowchart TD
   ACE_VER -->|2007| ACE07[🔴 RC4 + hash]
   ACE_VER -->|"2010+"| ACE10[🔴 Agile-style<br/>SHA-512 + AES-256]
 
+  %% MDW path
+  EXT -->|.mdw .mda| MDW_CHK["Jet System DB signature"]
+  MDW_CHK --> ULS[🟢 ULS 3DES decode<br/>fixed key]
+
+  %% Money / MSISAM path
+  EXT -->|.mny| MNY_CHK["MSISAM Database signature"]
+  MNY_CHK --> MSISAM_FLAGS{"Flag 0x06\nat 0x298?"}
+  MSISAM_FLAGS -->|Yes| MSISAM[🔴 MSISAM encryption<br/>MD5/SHA-1 + RC4]
+  MSISAM_FLAGS -->|No| MNY_NONE[No encryption]
+
   %% ODF path
   ODF_CHK --> ODF_MAN{"manifest.xml<br/>encryption-data?"}
   ODF_MAN -->|"Blowfish CFB"| ODF11[🔴 ODF 1.1<br/>PBKDF2 1024 iters]
@@ -164,7 +178,8 @@ flowchart TD
 | PowerPoint | `.ppt` `.pptx` `.pptm` `.potx` `.ppsx` | [formats/powerpoint.md](formats/powerpoint.md) |
 | OneNote | `.one` `.onetoc2` | [formats/onenote.md](formats/onenote.md) |
 | Outlook | `.pst` `.ost` | [formats/outlook.md](formats/outlook.md) |
-| Access | `.mdb` `.accdb` | [formats/access.md](formats/access.md) |
+| Access | `.mdb` `.accdb` `.mdw` | [formats/access.md](formats/access.md) |
+| Money | `.mny` | (no format doc — see [MSISAM algorithm](algorithms/non-password/msisam-encryption.md)) |
 | OpenDocument | `.odt` `.ods` `.odp` `.odg` `.odf` `.odb` | [formats/opendocument.md](formats/opendocument.md) |
 
 ### Algorithm Docs — 🔴 Password-Derived (Crackable)
@@ -190,6 +205,8 @@ flowchart TD
 | Digital Signatures | `[MS-OFFCRYPTO]` §2.5 | [algorithms/non-password/digital-signatures.md](algorithms/non-password/digital-signatures.md) |
 | PST Body Cipher | `[MS-PST]` §5.1–2 | [algorithms/non-password/pst-body-cipher.md](algorithms/non-password/pst-body-cipher.md) |
 | Access Jet Obfuscation | OUT-OF-CORPUS | [algorithms/non-password/access-jet-obfuscation.md](algorithms/non-password/access-jet-obfuscation.md) |
+| MSISAM Page Encryption (Money) | OUT-OF-CORPUS | [algorithms/non-password/msisam-encryption.md](algorithms/non-password/msisam-encryption.md) |
+| ULS Workgroup Security (MDW) | OUT-OF-CORPUS | [algorithms/non-password/uls-workgroup-security.md](algorithms/non-password/uls-workgroup-security.md) |
 
 ### Landscape Docs
 
