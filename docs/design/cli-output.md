@@ -149,7 +149,7 @@ Examples:
   opt info file.xlsx 2>&1 >/dev/null      Info only (no hash)
 
 Options:
-  --format [hashcat|unified|json]   Hash output format (default: unified)
+  --format [hashcat|unified|json]   Hash output format (default: hashcat)
   --no-hash                         Suppress stdout hash output
   --json                            Output stderr as JSON
   -q, --quiet                       Suppress stderr (hash only, same as 2>/dev/null)
