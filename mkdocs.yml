@@ -140,6 +140,8 @@ nav:
       - Digital Signatures: research/algorithms/non-password/digital-signatures.md
       - PST Body Cipher: research/algorithms/non-password/pst-body-cipher.md
       - Access Jet XOR: research/algorithms/non-password/access-jet-obfuscation.md
+      - MSISAM (Money): research/algorithms/non-password/msisam-encryption.md
+      - ULS Workgroup (MDW): research/algorithms/non-password/uls-workgroup-security.md
   - Hashcat:
       - Current modes:
           - Overview: hashcat/current/README.md
