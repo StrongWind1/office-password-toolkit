@@ -153,12 +153,6 @@ class EncryptionInfo:
 
 # --- Low-level primitives -------------------------------------------------
 
-# Backward-compat aliases for callers that imported these private names from
-# ecma376 before they moved to ciphers/hashes. Removed once all callers switch.
-_aes_cbc_decrypt = ciphers.aes_cbc_decrypt
-_aes_cbc_encrypt = ciphers.aes_cbc_encrypt
-_digest = hashes.digest
-
 
 def _hashlib_name(spec_name: str) -> str:
     """Resolve a spec algorithm string (e.g. ``"SHA-512"``) to a hashlib name.

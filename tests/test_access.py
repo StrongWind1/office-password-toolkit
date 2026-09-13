@@ -17,7 +17,7 @@ from pathlib import Path
 import olefile
 import pytest
 
-from office_password_toolkit.crypto import ecma376, vba
+from office_password_toolkit.crypto import ciphers, ecma376, hashes, vba
 from office_password_toolkit.formats import access
 from office_password_toolkit.formats.access import (
     ACE_ENGINE_SIGNATURE,
@@ -112,8 +112,8 @@ def _encrypt_ace_page(cipher: object, page_number: int, plaintext: bytes) -> byt
     """Inverse of ``access._ace_decrypt_page`` -- CBC-encrypt one page for a round-trip."""
     page_bytes = page_number.to_bytes(4, "little")
     block_key = bytes(page_bytes[i] ^ cipher.encoding_key[i] for i in range(ENCODING_KEY_SIZE))
-    iv = ecma376._fit(ecma376._digest(cipher.key_data_hash, cipher.key_data_salt + block_key), cipher.block_size)
-    return ecma376._aes_cbc_encrypt(cipher.bulk_key, iv, plaintext)
+    iv = ecma376._fit(hashes.digest(cipher.key_data_hash, cipher.key_data_salt + block_key), cipher.block_size)
+    return ciphers.aes_cbc_encrypt(cipher.bulk_key, iv, plaintext)
 
 
 def _build_encrypted_accdb(descriptor_xml: bytes, plaintext_pages: list[bytes]) -> bytes:
