@@ -227,12 +227,14 @@ def rc2_cbc_encrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
 def desx_cbc_decrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
     r"""DESX-CBC decrypt: K3 \xor DES_K1^{-1}(K2 \xor ciphertext).
 
-    The 24-byte key is split per the DESX construction ([MS-OFFCRYPTO] Section
-    2.3.4.10): K1 (8 bytes, DES key), K2 (8 bytes, pre-whitening XOR), K3
-    (8 bytes, post-whitening XOR). CBC chaining XORs the previous ciphertext
-    block into the plaintext after each block's DESX decrypt. A new Cipher
-    object is created per block because no library provides native DESX; the
-    whitening must wrap each individual ECB call.
+    DES-XEX3-CBC per [DRAFT-DESX] draft-ietf-ipsec-ciph-desx-00 Section 2.2,
+    referenced by [MS-OFFCRYPTO] Section 2.3.4.10. The 24-byte key is split in
+    Windows CNG order (DES key first, not the draft's XOR-key-first order):
+    K1 (8 bytes, DES key), K2 (8 bytes, pre-whitening XOR), K3 (8 bytes,
+    post-whitening XOR). CBC chaining XORs the previous ciphertext block into
+    the plaintext after each block's DESX decrypt. A new Cipher object is
+    created per block because no library provides native DESX; the whitening
+    must wrap each individual ECB call.
     """
     des_key = key[:8]
     pre_whiten = key[8:16]
@@ -252,7 +254,10 @@ def desx_cbc_decrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
 
 
 def desx_cbc_encrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
-    """DESX-CBC encrypt (inverse of :func:`desx_cbc_decrypt`). Same per-block Cipher approach."""
+    """DESX-CBC encrypt (inverse of :func:`desx_cbc_decrypt`). Same per-block Cipher approach.
+
+    DES-XEX3-CBC per [DRAFT-DESX] draft-ietf-ipsec-ciph-desx-00 Section 2.2.
+    """
     des_key = key[:8]
     pre_whiten = key[8:16]
     post_whiten = key[16:24]
