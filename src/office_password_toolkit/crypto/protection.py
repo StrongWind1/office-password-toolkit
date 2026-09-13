@@ -36,6 +36,7 @@ from office_password_toolkit.crypto import hashes
 from office_password_toolkit.crypto.xor import password_verifier_method2
 
 if TYPE_CHECKING:
+    import hashlib
     from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ def _canonical_algorithm(algorithm_name: str) -> str:
     return lookup.get(squashed, algorithm_name.upper())
 
 
-def _resolve_hash(algorithm_name: str) -> Callable[[bytes], hashes._LegacyHashWrapper]:
+def _resolve_hash(algorithm_name: str) -> Callable[[bytes], hashlib._Hash | hashes._LegacyHashWrapper]:
     """Resolve an ``algorithmName`` to a hashlib-compatible constructor.
 
     All algorithms (SHA-1/256/384/512, MD5, MD4, MD2) are routed through
