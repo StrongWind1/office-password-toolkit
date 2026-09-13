@@ -114,6 +114,10 @@ convention = "google"
 #            Section 2.3.4.10 DESX construction) where the manual CBC chaining wraps
 #            individual ECB calls with XOR whitening layers. Not a misuse of ECB.
 "src/office_password_toolkit/crypto/ecma376.py" = ["N811", "N806", "S305"]
+# ciphers.py is the centralised cipher module: ECB mode is intentionally used
+# for 3DES-ECB (Jet ULS password decode) and DESX whitening (per [MS-OFFCRYPTO]
+# Section 2.3.4.10). N811 fires on the _Blowfish/_RC2/_TripleDES import renames.
+"src/office_password_toolkit/crypto/ciphers.py" = ["S305", "N811"]
 
 [tool.ty.environment]
 python-version = "3.11"
