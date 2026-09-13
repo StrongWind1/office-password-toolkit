@@ -25,7 +25,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from Crypto.Cipher import DES3
+from office_password_toolkit.crypto.ciphers import rc4 as _rc4
+from office_password_toolkit.crypto.ciphers import tripledes_ecb_decrypt, tripledes_ecb_encrypt
 
 # --- 3DES keys ---------------------------------------------------------------
 
@@ -82,14 +83,13 @@ def decode_password(field: bytes, *, jet3: bool = False) -> str:
     if len(field) < field_size:
         field = field.ljust(field_size, b"\x00")
 
-    cipher = DES3.new(_PASSWORD_KEY, DES3.MODE_ECB)
     plaintext = bytearray()
 
     for offset in range(0, field_size, _BLOCK_SIZE):
         block = field[offset : offset + _BLOCK_SIZE]
         if block == WORKGROUP_KEY:
             break
-        plaintext.extend(cipher.decrypt(block))
+        plaintext.extend(tripledes_ecb_decrypt(_PASSWORD_KEY, block))
 
     if jet3:
         return bytes(plaintext).rstrip(b"\x00").decode("cp1252", errors="replace")
@@ -108,7 +108,6 @@ def encode_password(password: str, *, jet3: bool = False) -> bytes:
     if len(pw_bytes) > field_size:
         pw_bytes = pw_bytes[:field_size]
 
-    cipher = DES3.new(_PASSWORD_KEY, DES3.MODE_ECB)
     result = bytearray()
 
     for offset in range(0, field_size, _BLOCK_SIZE):
@@ -117,7 +116,7 @@ def encode_password(password: str, *, jet3: bool = False) -> bytes:
             result.extend(WORKGROUP_KEY)
         else:
             block = block.ljust(_BLOCK_SIZE, b"\x00")
-            result.extend(cipher.encrypt(block))
+            result.extend(tripledes_ecb_encrypt(_PASSWORD_KEY, block))
 
     return bytes(result)
 
@@ -146,11 +145,10 @@ def _decode_workgroup_payload(payload: bytes) -> WorkgroupIdentity | None:
         return None
 
     data = bytearray(payload[:payload_size])
-    cipher = DES3.new(_WORKGROUP_IDENTITY_KEY, DES3.MODE_ECB)
 
     for i in range(_WORKGROUP_BLOCKS):
         offset = i * _BLOCK_SIZE
-        data[offset : offset + _BLOCK_SIZE] = cipher.decrypt(bytes(data[offset : offset + _BLOCK_SIZE]))
+        data[offset : offset + _BLOCK_SIZE] = tripledes_ecb_decrypt(_WORKGROUP_IDENTITY_KEY, bytes(data[offset : offset + _BLOCK_SIZE]))
 
     def _extract(buf: bytes | bytearray, start: int, max_len: int) -> str:
         end = buf.find(b"\x00", start, start + max_len)
@@ -322,23 +320,6 @@ def _apply_obfuscation(raw: bytearray, base_value: int) -> bytes:
 
 
 # --- MDW file parsing --------------------------------------------------------
-
-
-def _rc4(key: bytes, data: bytes) -> bytes:
-    """RC4 encrypt/decrypt."""
-    state = list(range(_RC4_STATE_SIZE))
-    j = 0
-    for i in range(_RC4_STATE_SIZE):
-        j = (j + state[i] + key[i % len(key)]) % _RC4_STATE_SIZE
-        state[i], state[j] = state[j], state[i]
-    out = bytearray(len(data))
-    i = j = 0
-    for index, byte in enumerate(data):
-        i = (i + 1) % _RC4_STATE_SIZE
-        j = (j + state[i]) % _RC4_STATE_SIZE
-        state[i], state[j] = state[j], state[i]
-        out[index] = byte ^ state[(state[i] + state[j]) % _RC4_STATE_SIZE]
-    return bytes(out)
 
 
 @dataclass(frozen=True)
