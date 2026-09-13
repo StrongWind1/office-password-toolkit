@@ -273,10 +273,7 @@ def read_ppt_modify_password(path: str) -> str | None:
 
     if header_token == 0xF3D1C4DF:
         ole.close()
-        raise RuntimeError(
-            "File is encrypted. Decrypt first (try default password "
-            "'/01Hannes Ruescher/01' for older PowerPoint versions)."
-        )
+        raise RuntimeError("File is encrypted. Decrypt first (try default password '/01Hannes Ruescher/01' for older PowerPoint versions).")
 
     # --- Scan PowerPoint Document stream for ModifyPasswordAtom ---
     pptdoc = ole.openstream("PowerPoint Document").read()

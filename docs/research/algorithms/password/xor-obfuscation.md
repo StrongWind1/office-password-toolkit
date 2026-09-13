@@ -120,25 +120,28 @@ Fields to extract from the `WordDocument` stream header:
 
 ```python
 def verify_xor_excel(
-    candidate: str,       # ANSI password, 1-15 chars
-    stored_key: int,      # XORObfuscation.key (u16)
-    stored_verifier: int, # XORObfuscation.verificationBytes (u16)
+    candidate: str,  # ANSI password, 1-15 chars
+    stored_key: int,  # XORObfuscation.key (u16)
+    stored_verifier: int,  # XORObfuscation.verificationBytes (u16)
 ) -> bool: ...
+
 
 def verify_xor_word(
-    candidate: str,       # ANSI password, 1-15 chars
-    stored_lkey: int,     # FibBase.lKey (u32)
+    candidate: str,  # ANSI password, 1-15 chars
+    stored_lkey: int,  # FibBase.lKey (u32)
 ) -> bool: ...
 
+
 def decode_xor_excel(
-    xor_array: bytes,     # 16-byte obfuscation array from CreateXorArray_Method1
-    data: bytes,          # obfuscated record data bytes
-    offset: int,          # starting byte offset in stream (for array index alignment)
+    xor_array: bytes,  # 16-byte obfuscation array from CreateXorArray_Method1
+    data: bytes,  # obfuscated record data bytes
+    offset: int,  # starting byte offset in stream (for array index alignment)
 ) -> bytes: ...
 
+
 def decode_xor_word(
-    xor_array: bytes,     # 16-byte obfuscation array from CreateXorArray_Method2
-    data: bytes,          # obfuscated stream bytes
+    xor_array: bytes,  # 16-byte obfuscation array from CreateXorArray_Method2
+    data: bytes,  # obfuscated stream bytes
 ) -> bytes: ...
 ```
 

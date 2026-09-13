@@ -169,6 +169,7 @@ from xml.etree import ElementTree as ET
 
 NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 
+
 def strip_sheet_protection(src: Path, dst: Path) -> None:
     """Remove sheetProtection from every worksheet in an xlsx file."""
     with zipfile.ZipFile(src, "r") as zin, zipfile.ZipFile(dst, "w") as zout:
@@ -291,6 +292,7 @@ REVISION_ATTRS = [
     "revisionsPassword",
 ]
 
+
 def strip_revision_protection(workbook_xml: str) -> str:
     """Remove revision-protection attributes from workbookProtection."""
     tree = ET.fromstring(workbook_xml)
@@ -360,6 +362,7 @@ from __future__ import annotations
 from xml.etree import ElementTree as ET
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
 
 def disable_document_protection(settings_xml: str) -> str:
     """Set w:enforcement='0' on documentProtection to disable restriction."""
@@ -476,10 +479,7 @@ def strip_all(src: Path, dst: Path) -> list[str]:
             data = zin.read(item.filename)
 
             # Check if any strip rule applies to this member.
-            applicable = [
-                (prefix, tag) for prefix, tag in STRIP_RULES
-                if item.filename.startswith(prefix) or item.filename == prefix
-            ]
+            applicable = [(prefix, tag) for prefix, tag in STRIP_RULES if item.filename.startswith(prefix) or item.filename == prefix]
 
             if applicable and item.filename.endswith(".xml"):
                 tree = ET.fromstring(data)

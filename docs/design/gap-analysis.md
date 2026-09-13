@@ -69,8 +69,8 @@ flowchart LR
 | Word .doc write-res (cleartext) | Word .doc | `formats/ole.py` | Read SttbfAssoc[0x11] | ✅ |
 | PPT .ppt modify (cleartext) | PPT .ppt | `formats/ole.py` | Read ModifyPasswordAtom | ✅ |
 | XOR obfuscation decode | Word/Excel .doc/.xls | `crypto/xor.py` | Known-plaintext array reconstruction | ✅ |
-| 16-bit verifier collide | Excel .xls sheet/workbook/write | `crypto/legacy_hashes.py` | Instant collision (0xCE4B) | ✅ |
-| 32-bit verifier collide | Word .doc lKeyProtDoc | `crypto/legacy_hashes.py` | Instant collision | ✅ |
+| 16-bit verifier collide | Excel .xls sheet/workbook/write | `crypto/xor.py` | Instant collision (0xCE4B) | ✅ |
+| 32-bit verifier collide | Word .doc lKeyProtDoc | `crypto/xor.py` | Instant collision | ✅ |
 | PST CRC-32 collide | Outlook .pst | `crypto/pst.py` | Gaussian elimination | ✅ |
 | PST CRC-32 strip | Outlook .pst | `formats/outlook.py` | Zero PidTagPstPassword | ✅ |
 | PST body cipher decode | Outlook .pst | `crypto/pst.py` | Permute/cyclic (keyless) | ✅ |
@@ -148,7 +148,7 @@ Every technique in `fast_recovery/` is already implemented in the toolkit:
 | Cleartext reading | `cleartext.md` | `formats/ole.py` — SttbfAssoc[0x11], ModifyPasswordAtom |
 | XOR/Jet/PST decode | `decode.md` | `crypto/xor.py`, `crypto/pst.py`, `formats/access.py` |
 | Protection stripping | `strip.md` | `formats/ooxml.py` bypass(), `formats/odf.py` bypass() |
-| 16/32-bit collision | `collide.md` | `crypto/legacy_hashes.py`, `crypto/pst.py` (Gaussian CRC-32) |
+| 16/32-bit collision | `collide.md` | `crypto/xor.py`, `crypto/pst.py` (Gaussian CRC-32) |
 | VBA bypass | `bypass.md` | `crypto/vba.py` — DPB rewrite, unprotected triple |
 
 ## Summary Scorecard

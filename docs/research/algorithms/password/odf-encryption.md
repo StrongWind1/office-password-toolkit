@@ -115,12 +115,12 @@ ODF 1.3 additional fields (Argon2id):
 ```python
 def verify_odf(
     password: str,
-    salt: bytes,              # from manifest:key-derivation.salt
-    iterations: int,          # from manifest:key-derivation.iteration-count
-    iv: bytes,                # from manifest:algorithm.initialisation-vector
-    ciphertext: bytes,        # raw ZIP entry bytes for the encrypted stream
-    stored_checksum: bytes,   # from manifest:encryption-data.checksum
-    profile: str,             # "odf11" | "odf12" | "odf13"
+    salt: bytes,  # from manifest:key-derivation.salt
+    iterations: int,  # from manifest:key-derivation.iteration-count
+    iv: bytes,  # from manifest:algorithm.initialisation-vector
+    ciphertext: bytes,  # raw ZIP entry bytes for the encrypted stream
+    stored_checksum: bytes,  # from manifest:encryption-data.checksum
+    profile: str,  # "odf11" | "odf12" | "odf13"
 ) -> bool: ...
 ```
 

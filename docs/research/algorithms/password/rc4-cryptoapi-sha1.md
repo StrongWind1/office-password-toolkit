@@ -99,17 +99,18 @@ What your code needs from the EncryptionHeader + EncryptionVerifier structures i
 ```python
 def derive_rc4_cryptoapi_key(
     password: str,
-    salt: bytes,      # EncryptionVerifier.Salt (16 bytes)
-    key_bits: int,     # EncryptionHeader.KeySize
-    block: int,        # block number (0 for verifier)
+    salt: bytes,  # EncryptionVerifier.Salt (16 bytes)
+    key_bits: int,  # EncryptionHeader.KeySize
+    block: int,  # block number (0 for verifier)
 ) -> bytes: ...
+
 
 def verify_rc4_cryptoapi(
     password: str,
-    salt: bytes,                  # EncryptionVerifier.Salt (16 bytes)
-    key_bits: int,                # EncryptionHeader.KeySize
-    enc_verifier: bytes,          # EncryptionVerifier.EncryptedVerifier (16 bytes)
-    enc_verifier_hash: bytes,     # EncryptionVerifier.EncryptedVerifierHash (20 bytes)
+    salt: bytes,  # EncryptionVerifier.Salt (16 bytes)
+    key_bits: int,  # EncryptionHeader.KeySize
+    enc_verifier: bytes,  # EncryptionVerifier.EncryptedVerifier (16 bytes)
+    enc_verifier_hash: bytes,  # EncryptionVerifier.EncryptedVerifierHash (20 bytes)
 ) -> bool: ...
 ```
 

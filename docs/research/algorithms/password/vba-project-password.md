@@ -123,7 +123,7 @@ Fields to extract from the `PROJECT` stream within the VBA project storage:
 
 ```python
 def vba_decrypt_dpb(
-    enc_bytes: bytes,          # hex-decoded DPB= value
+    enc_bytes: bytes,  # hex-decoded DPB= value
 ) -> tuple[int, int, int, bytes]:
     """Decrypt the DPB XOR wrapper.
 
@@ -135,11 +135,12 @@ def vba_decrypt_dpb(
     """
     ...
 
+
 def verify_vba_password(
-    candidate: str,            # password to test
-    key: bytes,                # 4-byte Key from Password Hash Data Structure
-    stored_hash: bytes,        # 20-byte PasswordHash from Password Hash Data Structure
-    codepage: int = 1252,      # from PROJECTCODEPAGE record in dir stream
+    candidate: str,  # password to test
+    key: bytes,  # 4-byte Key from Password Hash Data Structure
+    stored_hash: bytes,  # 20-byte PasswordHash from Password Hash Data Structure
+    codepage: int = 1252,  # from PROJECTCODEPAGE record in dir stream
 ) -> bool:
     """Verify a candidate password against a stored VBA project password hash.
 
@@ -773,6 +774,7 @@ def compute_vba_content_hash(vba_storage, hash_algo: str = "md5") -> bytes:
     """
     ...
 
+
 def compute_vba_agile_content_hash(vba_storage, hash_algo: str) -> bytes:
     """Compute the Agile Content Hash ([MS-OVBA] ss2.4.2.4).
 
@@ -781,6 +783,7 @@ def compute_vba_agile_content_hash(vba_storage, hash_algo: str) -> bytes:
     digest using the specified hash algorithm.
     """
     ...
+
 
 def compute_vba_v3_content_hash(vba_storage, hash_algo: str) -> bytes:
     """Compute the V3 Content Hash ([MS-OVBA] ss2.4.2.7).

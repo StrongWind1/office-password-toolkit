@@ -148,7 +148,7 @@ flowchart LR
 
 ```python
 def verify_cryptoapi_signature(
-    ole_storage: OleStorage,     # OLE compound file root storage
+    ole_storage: OleStorage,  # OLE compound file root storage
     cert_info: CertificateInfo,  # parsed from _signatures stream
 ) -> bool:
     """Verify a CryptoAPI digital signature per [MS-OFFCRYPTO] SS2.5.1.5.
@@ -158,9 +158,10 @@ def verify_cryptoapi_signature(
     """
     ...
 
+
 def verify_xmldsig_signature(
     storage_or_package: Storage,  # OLE storage or OPC package
-    signature_xml: bytes,         # raw XML from _xmlsignatures stream or OPC part
+    signature_xml: bytes,  # raw XML from _xmlsignatures stream or OPC part
 ) -> bool:
     """Verify an xmldsig digital signature per [MS-OFFCRYPTO] SS2.5.2.
 
@@ -169,9 +170,10 @@ def verify_xmldsig_signature(
     """
     ...
 
+
 def verify_vba_signature(
-    signed_data: bytes,   # PKCS #7 SignedData from pbSignatureBuffer
-    vba_hash: bytes,      # content hash per [MS-OVBA] SS2.4.2
+    signed_data: bytes,  # PKCS #7 SignedData from pbSignatureBuffer
+    vba_hash: bytes,  # content hash per [MS-OVBA] SS2.4.2
 ) -> bool:
     """Verify a VBA project digital signature per [MS-OSHARED] SS2.3.2.4.6.
 

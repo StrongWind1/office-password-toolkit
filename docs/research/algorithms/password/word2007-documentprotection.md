@@ -95,11 +95,11 @@ Fields to extract from `<w:documentProtection>` in `word/settings.xml`:
 
 ```python
 def verify_word2007_docprotect(
-    password: str,         # ASCII, 1-15 characters
-    salt: bytes,           # base64-decoded from w:salt
-    spin_count: int,       # from w:cryptSpinCount
-    sid: int,              # from w:cryptAlgorithmSid (4=SHA-1, 14=SHA-512, etc.)
-    stored_hash: bytes,    # base64-decoded from w:hash
+    password: str,  # ASCII, 1-15 characters
+    salt: bytes,  # base64-decoded from w:salt
+    spin_count: int,  # from w:cryptSpinCount
+    sid: int,  # from w:cryptAlgorithmSid (4=SHA-1, 14=SHA-512, etc.)
+    stored_hash: bytes,  # base64-decoded from w:hash
 ) -> bool: ...
 ```
 

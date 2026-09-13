@@ -87,11 +87,11 @@ What your code needs from the `.pst` file to decode all data blocks:
 
 ```python
 def decode_pst_block(
-    data: bytearray,        # raw data field bytes (cb bytes)
-    crypt_method: int,       # from HEADER.bCryptMethod (0x00/0x01/0x02)
-    bid: int,                # from BBTENTRY.BREF.bid (used as dwKey for cyclic)
-    mpbb_crypt: bytes,       # 768-byte substitution table from [MS-PST] SS5.1
-) -> bytearray: ...         # returns decoded data in-place
+    data: bytearray,  # raw data field bytes (cb bytes)
+    crypt_method: int,  # from HEADER.bCryptMethod (0x00/0x01/0x02)
+    bid: int,  # from BBTENTRY.BREF.bid (used as dwKey for cyclic)
+    mpbb_crypt: bytes,  # 768-byte substitution table from [MS-PST] SS5.1
+) -> bytearray: ...  # returns decoded data in-place
 ```
 
 ---

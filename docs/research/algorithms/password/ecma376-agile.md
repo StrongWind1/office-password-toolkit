@@ -130,13 +130,13 @@ Also from the `<keyData>` element (for document decryption after password verifi
 ```python
 def verify_agile_password(
     password: str,
-    salt: bytes,           # from p:encryptedKey.saltValue
-    spin_count: int,       # from p:encryptedKey.spinCount
-    hash_algo: str,        # from p:encryptedKey.hashAlgorithm
-    key_bits: int,         # from p:encryptedKey.keyBits
-    block_size: int,       # from p:encryptedKey.blockSize
-    encrypted_verifier: bytes,      # from p:encryptedKey.encryptedVerifierHashInput
-    encrypted_verifier_hash: bytes, # from p:encryptedKey.encryptedVerifierHashValue
+    salt: bytes,  # from p:encryptedKey.saltValue
+    spin_count: int,  # from p:encryptedKey.spinCount
+    hash_algo: str,  # from p:encryptedKey.hashAlgorithm
+    key_bits: int,  # from p:encryptedKey.keyBits
+    block_size: int,  # from p:encryptedKey.blockSize
+    encrypted_verifier: bytes,  # from p:encryptedKey.encryptedVerifierHashInput
+    encrypted_verifier_hash: bytes,  # from p:encryptedKey.encryptedVerifierHashValue
     cipher_algo: str = "AES",
     chaining: str = "ChainingModeCBC",
 ) -> bool: ...

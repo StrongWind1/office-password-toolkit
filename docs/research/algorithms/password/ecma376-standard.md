@@ -113,17 +113,18 @@ Fields to extract from the `\EncryptionInfo` binary stream:
 ```python
 def derive_standard_key(
     password: str,
-    salt: bytes,       # EncryptionVerifier.Salt, 16 bytes
-    key_bits: int,     # EncryptionHeader.KeySize: 128, 192, or 256
-) -> bytes: ...        # Returns AES key (key_bits // 8 bytes)
+    salt: bytes,  # EncryptionVerifier.Salt, 16 bytes
+    key_bits: int,  # EncryptionHeader.KeySize: 128, 192, or 256
+) -> bytes: ...  # Returns AES key (key_bits // 8 bytes)
+
 
 def verify_standard(
     password: str,
-    salt: bytes,                  # EncryptionVerifier.Salt, 16 bytes
-    key_bits: int,                # EncryptionHeader.KeySize
-    enc_verifier: bytes,          # EncryptionVerifier.EncryptedVerifier, 16 bytes
-    enc_verifier_hash: bytes,     # EncryptionVerifier.EncryptedVerifierHash, 32 bytes
-) -> bool: ...                    # True if password is correct
+    salt: bytes,  # EncryptionVerifier.Salt, 16 bytes
+    key_bits: int,  # EncryptionHeader.KeySize
+    enc_verifier: bytes,  # EncryptionVerifier.EncryptedVerifier, 16 bytes
+    enc_verifier_hash: bytes,  # EncryptionVerifier.EncryptedVerifierHash, 32 bytes
+) -> bool: ...  # True if password is correct
 ```
 
 ---

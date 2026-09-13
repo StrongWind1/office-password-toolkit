@@ -112,15 +112,16 @@ What a decoder needs from the OLE compound file to decrypt IRM-protected content
 
 ```python
 def decrypt_irm_content(
-    protected_stream: bytes,    # raw bytes from \EncryptedPackage or \0x09DRMContent
-    content_key: bytes,         # 16-byte AES key from RSA-unwrapped enablingbits
-    mode: str = "ECB",          # "ECB" (section 2.2.10) or "CBC" (section 4.1.3.5)
+    protected_stream: bytes,  # raw bytes from \EncryptedPackage or \0x09DRMContent
+    content_key: bytes,  # 16-byte AES key from RSA-unwrapped enablingbits
+    mode: str = "ECB",  # "ECB" (section 2.2.10) or "CBC" (section 4.1.3.5)
 ) -> bytes: ...
 
+
 def obtain_content_key(
-    eul_stream: bytes,          # raw bytes from EUL-<base32GUID> stream
-    rac_private_key: object,    # user's RAC RSA private key (external to file)
-) -> bytes: ...                 # returns 16-byte AES content key
+    eul_stream: bytes,  # raw bytes from EUL-<base32GUID> stream
+    rac_private_key: object,  # user's RAC RSA private key (external to file)
+) -> bytes: ...  # returns 16-byte AES content key
 ```
 
 ---

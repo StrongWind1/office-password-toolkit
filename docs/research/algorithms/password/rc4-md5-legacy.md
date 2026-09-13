@@ -96,8 +96,8 @@ Fields to extract from the RC4 Encryption Header (52-byte structure in the Table
 ```python
 def derive_rc4_md5_key(
     password: str,
-    salt: bytes,         # 16 bytes from header offset 0x04
-    block: int,          # 0x00000000 for verifier, incrementing for content
+    salt: bytes,  # 16 bytes from header offset 0x04
+    block: int,  # 0x00000000 for verifier, incrementing for content
 ) -> bytes:
     """Derive a 128-bit RC4 key (40-bit effective entropy).
 
@@ -105,11 +105,12 @@ def derive_rc4_md5_key(
     """
     ...
 
+
 def verify_rc4_md5(
     password: str,
-    salt: bytes,                # 16 bytes from header offset 0x04
-    enc_verifier: bytes,        # 16 bytes from header offset 0x14
-    enc_verifier_hash: bytes,   # 16 bytes from header offset 0x24
+    salt: bytes,  # 16 bytes from header offset 0x04
+    enc_verifier: bytes,  # 16 bytes from header offset 0x14
+    enc_verifier_hash: bytes,  # 16 bytes from header offset 0x24
 ) -> bool:
     """Check a candidate password against the RC4 Encryption Header.
 

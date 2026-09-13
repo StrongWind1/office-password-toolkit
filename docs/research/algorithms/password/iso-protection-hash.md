@@ -104,10 +104,10 @@ For `.xlsb`, the same four values are inside the `IsoPasswordData` structure emb
 ```python
 def verify_iso_protection(
     password: str,
-    salt: bytes,           # from saltValue (base64-decoded)
-    spin_count: int,       # from spinCount
-    algo: str,             # from algorithmName (e.g. "SHA-512")
-    stored_hash: bytes,    # from hashValue (base64-decoded)
+    salt: bytes,  # from saltValue (base64-decoded)
+    spin_count: int,  # from spinCount
+    algo: str,  # from algorithmName (e.g. "SHA-512")
+    stored_hash: bytes,  # from hashValue (base64-decoded)
 ) -> bool: ...
 ```
 
@@ -401,28 +401,27 @@ import hashlib
 import struct
 
 HASH_FUNCTIONS = {
-    "MD2":        None,          # not in hashlib; requires a third-party provider
-    "MD4":        "md4",
-    "MD5":        "md5",
-    "RIPEMD-128": None,          # not in hashlib; requires a third-party provider
+    "MD2": None,  # not in hashlib; requires a third-party provider
+    "MD4": "md4",
+    "MD5": "md5",
+    "RIPEMD-128": None,  # not in hashlib; requires a third-party provider
     "RIPEMD-160": "ripemd160",
-    "SHA-1":      "sha1",
-    "SHA-256":    "sha256",
-    "SHA-384":    "sha384",
-    "SHA-512":    "sha512",
-    "WHIRLPOOL":  "whirlpool",
+    "SHA-1": "sha1",
+    "SHA-256": "sha256",
+    "SHA-384": "sha384",
+    "SHA-512": "sha512",
+    "WHIRLPOOL": "whirlpool",
 }
 
-def iso_protection_hash(password: str, salt: bytes,
-                        spin_count: int, algorithm_name: str) -> bytes:
+
+def iso_protection_hash(password: str, salt: bytes, spin_count: int, algorithm_name: str) -> bytes:
     """Compute the ISO Write Protection hash per [MS-OFFCRYPTO] section 2.4.2.4."""
     hash_name = HASH_FUNCTIONS[algorithm_name]
-    pw = password.encode("utf-16-le")                     # UTF-16LE, no BOM, no NUL
-    h = hashlib.new(hash_name, salt + pw).digest()        # H0 = H(salt || pw)
-    for i in range(spin_count):                           # i = 0 .. spin_count-1
-        h = hashlib.new(hash_name,
-                        h + struct.pack("<I", i)).digest() # Hn = H(Hn-1 || LE32(i))
-    return h                                               # Hfinal
+    pw = password.encode("utf-16-le")  # UTF-16LE, no BOM, no NUL
+    h = hashlib.new(hash_name, salt + pw).digest()  # H0 = H(salt || pw)
+    for i in range(spin_count):  # i = 0 .. spin_count-1
+        h = hashlib.new(hash_name, h + struct.pack("<I", i)).digest()  # Hn = H(Hn-1 || LE32(i))
+    return h  # Hfinal
 ```
 
 ### 5.5 Contrast with agile encryption KDF

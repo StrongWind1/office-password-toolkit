@@ -92,6 +92,7 @@ def compute_pst_crc32(password_bytes: bytes) -> int:
     """
     ...
 
+
 def check_pst_password(password_bytes: bytes, stored_value: int) -> bool:
     """Check candidate password against stored PidTagPstPassword.
 

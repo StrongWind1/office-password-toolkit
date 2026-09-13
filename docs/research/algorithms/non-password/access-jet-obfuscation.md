@@ -136,15 +136,15 @@ flowchart LR
 
 ```python
 def decode_jet3_password(
-    header: bytes,          # full header page (page 0)
-    fixed_key: bytes,       # UNCONFIRMED: hardcoded XOR key from mdbtools/Jackcess
+    header: bytes,  # full header page (page 0)
+    fixed_key: bytes,  # UNCONFIRMED: hardcoded XOR key from mdbtools/Jackcess
 ) -> str:
     """Decode Jet 3 database-open password by XOR with fixed key (UNCONFIRMED)."""
     ...
 
 
 def decode_jet4_password(
-    header: bytes,          # full header page (page 0)
+    header: bytes,  # full header page (page 0)
 ) -> str:
     """Decode Jet 4 database-open password by date-derived XOR mask (UNCONFIRMED)."""
     ...
@@ -152,12 +152,12 @@ def decode_jet4_password(
 
 def verify_ace2010_password(
     password: str,
-    salt: bytes,                        # from XML descriptor saltValue
-    spin_count: int,                    # from XML descriptor spinCount
-    hash_algo: str,                     # from XML descriptor hashAlgorithm
-    key_bits: int,                      # from XML descriptor keyBits
-    encrypted_verifier: bytes,          # from XML descriptor encryptedVerifierHashInput
-    encrypted_verifier_hash: bytes,     # from XML descriptor encryptedVerifierHashValue
+    salt: bytes,  # from XML descriptor saltValue
+    spin_count: int,  # from XML descriptor spinCount
+    hash_algo: str,  # from XML descriptor hashAlgorithm
+    key_bits: int,  # from XML descriptor keyBits
+    encrypted_verifier: bytes,  # from XML descriptor encryptedVerifierHashInput
+    encrypted_verifier_hash: bytes,  # from XML descriptor encryptedVerifierHashValue
 ) -> bool:
     """Verify ACE 2010+ database-open password via agile-style KDF (UNCONFIRMED)."""
     ...
