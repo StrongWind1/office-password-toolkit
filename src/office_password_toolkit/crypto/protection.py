@@ -29,13 +29,11 @@ verified with this standalone code instead.
 from __future__ import annotations
 
 import hashlib
-import hmac
 import logging
 from base64 import b64decode, b64encode
 from typing import TYPE_CHECKING, Final
 
-from office_password_toolkit.crypto.legacy_hashes import md2 as _md2_digest
-from office_password_toolkit.crypto.legacy_hashes import md4 as _md4_digest
+from office_password_toolkit.crypto import hashes
 from office_password_toolkit.crypto.xor import password_verifier_method2
 
 if TYPE_CHECKING:
@@ -147,41 +145,20 @@ def _canonical_algorithm(algorithm_name: str) -> str:
     return lookup.get(squashed, algorithm_name.upper())
 
 
-class _LegacyHashWrapper:
-    """Wrap a pure-Python hash function (md2/md4) in the hashlib._Hash interface."""
-
-    def __init__(self, func: Callable[[bytes], bytes], data: bytes = b"") -> None:
-        self._func = func
-        self._data = bytearray(data)
-
-    def update(self, data: bytes) -> None:
-        """Append ``data`` to the message."""
-        self._data += data
-
-    def digest(self) -> bytes:
-        """Return the digest of all data fed so far."""
-        return self._func(bytes(self._data))
-
-    def hexdigest(self) -> str:
-        """Return the hex-encoded digest."""
-        return self.digest().hex()
-
-
-def _resolve_hash(algorithm_name: str) -> Callable[[bytes], hashlib._Hash | _LegacyHashWrapper]:
+def _resolve_hash(algorithm_name: str) -> Callable[[bytes], hashlib._Hash | hashes._LegacyHashWrapper]:
     """Resolve an ``algorithmName`` to a hashlib-compatible constructor.
 
     Uses hashlib for SHA-1/256/384/512 and MD5. Falls back to the toolkit's own
-    pure-Python implementations (``crypto.legacy_hashes``) for MD2 and MD4, which
+    pure-Python implementations (``crypto.hashes``) for MD2 and MD4, which
     are CNG-producible but absent from most OpenSSL builds.
     """
     canonical = _canonical_algorithm(algorithm_name)
     ctor = _HASH_CTORS.get(canonical)
     if ctor is not None:
         return ctor
-    if canonical == "MD4":
-        return lambda data: _LegacyHashWrapper(_md4_digest, data)
-    if canonical == "MD2":
-        return lambda data: _LegacyHashWrapper(_md2_digest, data)
+    if canonical in ("MD4", "MD2"):
+        hashlib_name = canonical.lower()
+        return lambda data, _name=hashlib_name: hashes.new(_name, data)
     msg = f"Unknown algorithmName {algorithm_name!r}; not a reserved ISO write-protection primitive ([MS-OFFCRYPTO] Section 2.4.2.4)"
     raise ValueError(msg)
 
@@ -230,7 +207,7 @@ def verify(password: str, salt: bytes, spin_count: int, algorithm_name: str, exp
     cryptographic digest, false positives are cryptographically negligible.
     """
     got = iso_protection_hash(password, salt, spin_count, algorithm_name)
-    result = hmac.compare_digest(got, expected_hash)
+    result = hashes.compare_digest(got, expected_hash)
     logger.debug("ISO protection verify: %s (algo=%s)", "pass" if result else "fail", algorithm_name)
     return result
 
@@ -306,7 +283,7 @@ def word2007_protection_verify(password: str, crypt_algorithm_sid: int, spin_cou
     h = hash_ctor(salt + pre_stage).digest()
     for i in range(spin_count):
         h = hash_ctor(h + i.to_bytes(_COUNTER_WIDTH, _COUNTER_ORDER)).digest()
-    return hmac.compare_digest(h, expected)
+    return hashes.compare_digest(h, expected)
 
 
 # --- Unified $protect$ line (docs/reference/hash-formats.md) ---

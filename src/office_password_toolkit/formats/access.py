@@ -66,11 +66,11 @@ from typing_extensions import override
 # of that module, but its public surface (parse/verify/decrypt_package) cannot hand
 # back the bare bulk key that the Access per-page blockKey deviation needs, so we
 # bind them directly. They map 1:1 to Jackcess's AgileEncryptionProvider derivation.
+from office_password_toolkit.crypto.ciphers import aes_cbc_decrypt as _aes_cbc_decrypt
+from office_password_toolkit.crypto.ciphers import rc4 as _rc4
 from office_password_toolkit.crypto.ecma376 import (
     _BLOCK_KEY_INTERMEDIATE,
     EncryptionInfo,
-    _aes_cbc_decrypt,
-    _digest,
     _finalize_agile_key,
     _fit,
     _hashlib_name,
@@ -80,6 +80,7 @@ from office_password_toolkit.crypto.ecma376 import (
     unified_office_line,
     verify_password,
 )
+from office_password_toolkit.crypto.hashes import digest as _digest
 from office_password_toolkit.crypto.msisam import decrypt_file as msisam_decrypt_file
 from office_password_toolkit.crypto.msisam import extract_params as msisam_extract_params
 from office_password_toolkit.crypto.msisam import msisam_hash_line
@@ -140,7 +141,6 @@ _JET_RC4_KEY: bytes = b"\xc7\xda\x39\x6b"  # 0x6b39dac7 stored little-endian
 _JET_RC4_REGION_START: int = 0x18
 _JET3_RC4_REGION_LEN: int = 126
 _JET4_RC4_REGION_LEN: int = 128
-_RC4_STATE_SIZE: int = 256  # RC4 permutation table length
 
 # JetFormat version byte values at OFFSET_JET_VERSION (Jackcess ``JetFormat``).
 _JET3_VERSION: int = 0x00  # Access 97
@@ -265,29 +265,6 @@ def read_header(path: Path) -> AccessHeader | None:
 
 
 # --- Jet .mdb password DECODE (confirmed on real Access 2003 files) ---
-
-
-def _rc4(key: bytes, data: bytes) -> bytes:
-    """Apply the RC4 stream cipher to ``data`` under ``key`` (symmetric).
-
-    Jet's header obfuscation is a plain RC4 keystream XOR, so the same routine
-    both scrambles and unscrambles. Implemented locally (KSA + PRGA) rather than
-    pulled from another crypto module to keep this out-of-corpus handler in one
-    file. Per mdbtools ``src/libmdb/file.c``.
-    """
-    state = list(range(_RC4_STATE_SIZE))
-    j = 0
-    for i in range(_RC4_STATE_SIZE):
-        j = (j + state[i] + key[i % len(key)]) % _RC4_STATE_SIZE
-        state[i], state[j] = state[j], state[i]
-    out = bytearray(len(data))
-    i = j = 0
-    for index, byte in enumerate(data):
-        i = (i + 1) % _RC4_STATE_SIZE
-        j = (j + state[i]) % _RC4_STATE_SIZE
-        state[i], state[j] = state[j], state[i]
-        out[index] = byte ^ state[(state[i] + state[j]) % _RC4_STATE_SIZE]
-    return bytes(out)
 
 
 def _decode_jet3(header: AccessHeader) -> JetPasswordDecode:
