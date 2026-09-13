@@ -112,30 +112,14 @@ def aes_cbc_encrypt(key: bytes, iv: bytes, data: bytes) -> bytes:
 
 
 def aes_ecb_decrypt(key: bytes, data: bytes) -> bytes:
-    """AES-ECB decrypt via one CBC(IV=0) pass plus a chaining fix-up.
-
-    CBC with a zero IV differs from ECB only in that CBC XORs each recovered
-    block with the previous ciphertext block. Running CBC and then XOR-ing that
-    back out of every block after the first reproduces exact ECB output in a
-    single AES pass — correct and fast for large packages. Per [MS-OFFCRYPTO]
-    Section 2.3.4.9 (standard scheme).
-    """
-    decryptor = _Cipher(_alg.AES(key), _modes.CBC(bytes(_AES_BLOCK))).decryptor()
-    plaintext = bytearray(decryptor.update(data) + decryptor.finalize())
-    for offset in range(_AES_BLOCK, len(plaintext), _AES_BLOCK):
-        previous = data[offset - _AES_BLOCK : offset]
-        block = plaintext[offset : offset + _AES_BLOCK]
-        plaintext[offset : offset + _AES_BLOCK] = bytes(a ^ b for a, b in zip(block, previous, strict=True))
-    return bytes(plaintext)
+    """AES-ECB decrypt. Per [MS-OFFCRYPTO] Section 2.3.4.9 (standard scheme)."""
+    decryptor = _Cipher(_alg.AES(key), _modes.ECB()).decryptor()
+    return decryptor.update(data) + decryptor.finalize()
 
 
 def aes_ecb_encrypt_block(key: bytes, block: bytes) -> bytes:
-    """AES-ECB encrypt a single 16-byte block via CBC with a zero IV.
-
-    For one block, CBC(IV=0) reduces to E(plaintext) — identical to ECB.
-    Used by the standard-scheme verifier re-encryption ([MS-OFFCRYPTO] Section 2.3.4.9).
-    """
-    encryptor = _Cipher(_alg.AES(key), _modes.CBC(bytes(_AES_BLOCK))).encryptor()
+    """AES-ECB encrypt a single 16-byte block. Per [MS-OFFCRYPTO] Section 2.3.4.9."""
+    encryptor = _Cipher(_alg.AES(key), _modes.ECB()).encryptor()
     return encryptor.update(block) + encryptor.finalize()
 
 
