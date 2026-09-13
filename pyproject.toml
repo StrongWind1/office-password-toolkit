@@ -42,7 +42,6 @@ dependencies = [
   # memory-hard KDF that no hashcat/John kernel reaches, so decryption of those
   # packages is done in-process. Only this format needs it.
   "argon2-cffi",
-  "pycryptodome>=3.23.0",
 ]
 
 [project.urls]
