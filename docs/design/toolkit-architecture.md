@@ -41,28 +41,39 @@ flowchart TD
 ```mermaid
 flowchart LR
   subgraph "Format Handlers (../research/formats/)"
-    OLE["OleHandler\nole.py (1930L)"]
-    OOXML["OoxmlHandler\nooxml.py (954L)"]
-    ODF_H["OdfHandler\nodf.py (489L)"]
-    ON_H["OneNoteHandler\nonenote.py (366L)"]
-    PST_H["OutlookHandler\noutlook.py (752L)"]
-    ACC_H["AccessHandler\naccess.py (695L)"]
+    OLE["OleHandler\nole.py (2036L)"]
+    OOXML["OoxmlHandler\nooxml.py (931L)"]
+    ODF_H["OdfHandler\nodf.py (499L)"]
+    ON_H["OneNoteHandler\nonenote.py (412L)"]
+    PST_H["OutlookHandler\noutlook.py (743L)"]
+    ACC_H["AccessHandler\naccess.py (932L)"]
+    MDW_H["MdwHandler\nmdw.py (80L)"]
   end
-  subgraph "Crypto Modules (crypto/)"
+  subgraph "Crypto Foundation (crypto/)"
+    CIPH["ciphers.py\nAll cipher ops\n(sole cryptography import)"]
+    HASH["hashes.py\nAll hash/KDF ops\n(sole argon2-cffi import)"]
+  end
+  subgraph "Crypto Protocol (crypto/)"
     XOR["xor.py\nXOR obfuscation"]
     RC4["rc4legacy.py\nRC4+MD5, RC4+SHA1"]
     E376["ecma376.py\nStandard + Agile"]
     PROT["protection.py\nISO hash"]
-    ODF_C["odf.py\nPBKDF2 + BF/AES"]
+    ODF_C["odf.py\nPBKDF2 + BF/AES/GCM"]
     VBA["vba.py\nDPB decode + SHA-1"]
     PST_C["pst.py\nCRC-32 + body ciphers"]
+    MPP["mpp.py\nProject XOR decode"]
+    MSISAM["msisam.py\nMoney RC4 pages"]
+    ULS["uls.py\nJet ULS 3DES decode"]
   end
-  OLE --> XOR & RC4 & E376 & VBA
+  RC4 & E376 & ODF_C & MSISAM & ULS --> CIPH
+  E376 & RC4 & ODF_C & PROT & VBA & MSISAM --> HASH
+  OLE --> XOR & RC4 & E376 & VBA & MPP
   OOXML --> PROT & VBA
   ODF_H --> ODF_C
-  ON_H --> E376
+  ON_H --> E376 & RC4
   PST_H --> PST_C
-  ACC_H --> VBA & E376
+  ACC_H --> E376 & RC4 & MSISAM & VBA
+  MDW_H --> ULS
 ```
 
 ## Analysis → Code Mapping
@@ -87,20 +98,20 @@ flowchart LR
 
 | Analysis doc | Crypto module | Key function | Output |
 |---|---|---|---|
-| [../research/algorithms/password/ecma376-agile.md](../research/algorithms/password/ecma376-agile.md) | `crypto/ecma376.py` | `verify_agile()`, `decrypt_agile()` | `$office$*2013*...` / `$office$*sha512*...` |
-| [../research/algorithms/password/ecma376-standard.md](../research/algorithms/password/ecma376-standard.md) | `crypto/ecma376.py` | `verify_standard()`, `decrypt_standard()` | `$office$*2007*...` / `$office$*sha1*aes128*...` |
-| [../research/algorithms/password/rc4-cryptoapi-sha1.md](../research/algorithms/password/rc4-cryptoapi-sha1.md) | `crypto/rc4legacy.py` | `verify_rc4_cryptoapi()` | `$oldoffice$3*...` / `$office$*sha1*rc4*...` |
-| [../research/algorithms/password/rc4-md5-legacy.md](../research/algorithms/password/rc4-md5-legacy.md) | `crypto/rc4legacy.py` | `verify_rc4_md5()` | `$oldoffice$0*...` / `$office$*md5*rc4*...` |
-| [../research/algorithms/password/xor-obfuscation.md](../research/algorithms/password/xor-obfuscation.md) | `crypto/xor.py` | `decode_xor()`, `collide_xor()` | No hash line — DECODE/COLLIDE |
-| [../research/algorithms/password/iso-protection-hash.md](../research/algorithms/password/iso-protection-hash.md) | `crypto/protection.py` | `verify_iso_protection()` | `$office$2016$0$...` / `$protect$*sha512*...` |
-| [../research/algorithms/password/word2007-documentprotection.md](../research/algorithms/password/word2007-documentprotection.md) | `crypto/protection.py` | `verify_word2007_docprotect()` | `$protect$*sha1*word2007*...` |
-| [../research/algorithms/password/odf-encryption.md](../research/algorithms/password/odf-encryption.md) | `crypto/odf.py` | `verify_odf()`, `decrypt_odf()` | `$odf$*0*0*...` / `$odf$*sha1*pbkdf2*bf*...` |
-| [../research/algorithms/password/vba-project-password.md](../research/algorithms/password/vba-project-password.md) | `crypto/vba.py` | `decode_dpb()`, `verify_vba()` | `sha1hex:keyhex` / `$vba$*sha1*...*...` |
-| [../research/algorithms/password/pst-crc32.md](../research/algorithms/password/pst-crc32.md) | `crypto/pst.py` | `crc32_password()`, `collide_pst()` | No hash line — COLLIDE |
-| [../research/algorithms/non-password/pst-body-cipher.md](../research/algorithms/non-password/pst-body-cipher.md) | `crypto/pst.py` | `decode_permute()`, `decode_cyclic()` | No hash — DECODE |
+| [../research/algorithms/password/ecma376-agile.md](../research/algorithms/password/ecma376-agile.md) | `crypto/ecma376.py` | `verify_password()`, `decrypt_package()` | `$office$*2013*...` / `$office$*sha512*...` |
+| [../research/algorithms/password/ecma376-standard.md](../research/algorithms/password/ecma376-standard.md) | `crypto/ecma376.py` | `verify_password()`, `decrypt_package()` | `$office$*2007*...` / `$office$*sha1*aes128*...` |
+| [../research/algorithms/password/rc4-cryptoapi-sha1.md](../research/algorithms/password/rc4-cryptoapi-sha1.md) | `crypto/rc4legacy.py` | `rc4_cryptoapi_verify()` | `$oldoffice$3*...` / `$office$*sha1*rc4*...` |
+| [../research/algorithms/password/rc4-md5-legacy.md](../research/algorithms/password/rc4-md5-legacy.md) | `crypto/rc4legacy.py` | `rc4_md5_verify()` | `$oldoffice$0*...` / `$office$*md5*rc4*...` |
+| [../research/algorithms/password/xor-obfuscation.md](../research/algorithms/password/xor-obfuscation.md) | `crypto/xor.py` | `xor_decode_method1()`, `reconstruct_password()` | No hash line — DECODE/COLLIDE |
+| [../research/algorithms/password/iso-protection-hash.md](../research/algorithms/password/iso-protection-hash.md) | `crypto/protection.py` | `verify()`, `hash_line_25300()` | `$office$2016$0$...` / `$protect$*sha512*...` |
+| [../research/algorithms/password/word2007-documentprotection.md](../research/algorithms/password/word2007-documentprotection.md) | `crypto/protection.py` | `word2007_protection_verify()` | `$protect$*sha1*word2007*...` |
+| [../research/algorithms/password/odf-encryption.md](../research/algorithms/password/odf-encryption.md) | `crypto/odf.py` | `verify()`, `decrypt_entry()` | `$odf$*0*0*...` / `$odf$*sha1*pbkdf2*bf*...` |
+| [../research/algorithms/password/vba-project-password.md](../research/algorithms/password/vba-project-password.md) | `crypto/vba.py` | `decode_data_encryption()`, `extract_vba_hash()` | `sha1hex:keyhex` / `$vba$*sha1*...*...` |
+| [../research/algorithms/password/pst-crc32.md](../research/algorithms/password/pst-crc32.md) | `crypto/pst.py` | `password_crc()`, `crc_collision()` | No hash line — COLLIDE |
+| [../research/algorithms/non-password/pst-body-cipher.md](../research/algorithms/non-password/pst-body-cipher.md) | `crypto/pst.py` | `permute_decode()`, `cyclic_decode()` | No hash — DECODE |
 | [../research/algorithms/non-password/irm-rms-encryption.md](../research/algorithms/non-password/irm-rms-encryption.md) | — (not recoverable) | — | RecoveryClass.NONE |
 | [../research/algorithms/non-password/digital-signatures.md](../research/algorithms/non-password/digital-signatures.md) | — (STRIP only) | — | RecoveryClass.STRIP |
-| [../research/algorithms/non-password/access-jet-obfuscation.md](../research/algorithms/non-password/access-jet-obfuscation.md) | `formats/access.py` | `decode_jet_password()` | No hash — DECODE |
+| [../research/algorithms/non-password/access-jet-obfuscation.md](../research/algorithms/non-password/access-jet-obfuscation.md) | `formats/access.py` | Jet 3/4 header XOR decode | No hash — DECODE |
 
 ## Recovery Class Decision Tree
 
@@ -193,25 +204,31 @@ The complete mapping from every gate type to its recovery path:
 
 | Layer | File | Lines | Role |
 |---|---|---|---|
-| **Crypto** | `crypto/pst.py` | 1084 | CRC-32 + collider + permute/cyclic body ciphers |
-| | `crypto/ecma376.py` | 770 | Standard + agile KDFs, EncryptionInfo parser, decryptor |
-| | `crypto/odf.py` | 663 | PBKDF2 + Blowfish-CFB / AES-256-CBC, manifest parser |
-| | `crypto/rc4legacy.py` | 465 | MD5+RC4 and SHA-1+RC4 KDFs, $oldoffice$ lines |
-| | `crypto/protection.py` | 431 | ISO protection hash (iterator APPENDED), Word 2007 three-stage |
-| | `crypto/xor.py` | 428 | XOR obfuscation: Method 1/2 verifiers, array, body transform |
-| | `crypto/legacy_hashes.py` | 397 | 16-bit verifier, CreatePasswordVerifier_Method1, 0xCE4B |
-| | `crypto/vba.py` | 336 | DPB/CMG/GC decode, SHA-1 verifier, bypass triple |
-| **Formats** | `formats/ole.py` | 1930 | OLE/CFB: FilePass, EncryptionInfo, FibBase, DopBase, SttbfAssoc |
-| | `formats/ooxml.py` | 954 | OOXML ZIP: sheetProtection, workbookProtection, documentProtection XML |
-| | `formats/outlook.py` | 752 | PST: HEADER, bCryptMethod, NID_MESSAGE_STORE, PidTagPstPassword |
-| | `formats/access.py` | 695 | Access: Jet header XOR decode, VBA extraction |
-| | `formats/odf.py` | 489 | ODF ZIP: manifest.xml parsing, per-stream extraction |
-| | `formats/onenote.py` | 366 | OneNote: FileNode walk, magic-bounded blob, EncryptionInfo carve |
-| **Core** | `models.py` | 171 | ContainerKind, GateType, RecoveryClass, Gate, ExtractedHash |
-| | `detect.py` | 120 | Magic-byte detection, handler dispatch |
-| | `constants.py` | 55 | VelvetSweatshop, /01Hannes Ruescher/01, magic bytes |
-| | `extract.py` | 34 | Facade: detect → handler.extract() |
-| | `bypass.py` | 30 | Facade: detect → handler.bypass() |
-| | `decrypt.py` | 26 | Facade: detect → handler.decrypt() |
-| | `defaults.py` | 23 | Default password trial logic |
-| **Total** | | **10,367** | |
+| **Crypto foundation** | `crypto/ciphers.py` | 292 | All cipher ops — sole `cryptography` import point (RC4, AES, Blowfish, 3DES, RC2, DESX) |
+| | `crypto/hashes.py` | 493 | All hash/KDF ops — sole `argon2-cffi` import point, pure-Python MD4 (RFC 1320) + MD2 (RFC 1319) |
+| **Crypto protocol** | `crypto/pst.py` | 1063 | CRC-32 + collider + permute/cyclic body ciphers |
+| | `crypto/ecma376.py` | 600 | Standard + agile KDFs, EncryptionInfo parser, decryptor |
+| | `crypto/odf.py` | 609 | PBKDF2 + Blowfish-CFB / AES-256-CBC / Argon2id + AES-GCM, manifest parser |
+| | `crypto/uls.py` | 494 | Jet User-Level Security 3DES password decode + MDW parsing |
+| | `crypto/rc4legacy.py` | 459 | MD5+RC4 and SHA-1+RC4 KDFs, $oldoffice$ lines |
+| | `crypto/xor.py` | 406 | XOR obfuscation: Method 1/2 verifiers, array, body transform |
+| | `crypto/vba.py` | 344 | DPB/CMG/GC decode, SHA-1 verifier, bypass triple |
+| | `crypto/protection.py` | 307 | ISO protection hash (iterator APPENDED), Word 2007 three-stage |
+| | `crypto/msisam.py` | 188 | MSISAM MD5/SHA-1 + RC4 page encryption (Microsoft Money) |
+| | `crypto/mpp.py` | 165 | Microsoft Project Props-based XOR password decode |
+| **Formats** | `formats/ole.py` | 2036 | OLE/CFB: FilePass, EncryptionInfo, FibBase, DopBase, SttbfAssoc |
+| | `formats/access.py` | 932 | Access: Jet 3/4 decode, ACE 2007/2010+ agile, VBA extraction |
+| | `formats/ooxml.py` | 931 | OOXML ZIP: sheetProtection, workbookProtection, documentProtection XML |
+| | `formats/outlook.py` | 743 | PST: HEADER, bCryptMethod, NID_MESSAGE_STORE, PidTagPstPassword |
+| | `formats/odf.py` | 499 | ODF ZIP: manifest.xml parsing, per-stream extraction |
+| | `formats/onenote.py` | 412 | OneNote: FileNode walk, magic-bounded blob, EncryptionInfo carve |
+| | `formats/mdw.py` | 80 | MDW/MDA: Jet workgroup file detection + ULS dispatch |
+| **Core** | `cli/app.py` | 1532 | Typer CLI: info, unlock, advanced (8 subcommands) |
+| | `detect.py` | 363 | Magic-byte detection, product detection, handler dispatch |
+| | `models.py` | 280 | ContainerKind, GateType, RecoveryClass, Gate, ExtractedHash, DetectResult |
+| | `constants.py` | 59 | VelvetSweatshop, /01Hannes Ruescher/01, magic bytes, exit codes |
+| | `extract.py` | 43 | Facade: detect → handler.extract() |
+| | `bypass.py` | 38 | Facade: detect → handler.bypass() |
+| | `decrypt.py` | 34 | Facade: detect → handler.decrypt() |
+| | `defaults.py` | 23 | Default password list |
+| **Total** | | **13,636** | |
