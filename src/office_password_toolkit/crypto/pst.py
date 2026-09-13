@@ -49,9 +49,10 @@ _MASK32: Final = 0xFFFFFFFF
 def _build_crc_table() -> tuple[int, ...]:
     """Generate the reflected CRC-32 table from the polynomial.
 
-    Equivalent to the literal CrcTableOffset32[256] printed in [MS-PST]
-    Section 5.3; generating it keeps the reflected polynomial visible instead of
-    hiding it inside 256 magic constants.
+    Uses the standard byte-at-a-time reflected algorithm from RFC 1952 Section 8
+    (GZIP CRC). Equivalent to the literal CrcTableOffset32[256] printed in
+    [MS-PST] Section 5.3; generating it keeps the reflected polynomial visible
+    instead of hiding it inside 256 magic constants.
     """
     table = []
     for index in range(256):

@@ -75,7 +75,8 @@ def rc4(key: bytes, data: bytes) -> bytes:
     Pure-Python implementation that accepts any key length from 1 to 256 bytes,
     unlike ``cryptography`` which restricts RC4 to a whitelist of key sizes.
     Required by [MS-OFFCRYPTO] CryptoAPI which allows 40-128 bit keys in 8-bit
-    steps, including 48-bit (6-byte) keys the library rejects.
+    steps, including 48-bit (6-byte) keys the library rejects. Verified against
+    RFC 6229 test vectors (40/56/128/256-bit keys at offsets 0-4096).
     """
     # KSA (Key Scheduling Algorithm)
     s = list(range(256))
