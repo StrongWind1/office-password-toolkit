@@ -135,9 +135,14 @@ class TestGateSchemeTag:
         gate = Gate(gate=GateType.IRM, recovery=RecoveryClass.NONE)
         assert gate_scheme_tag(gate) == "rights-managed"
 
-    def test_gate_scheme_tag_fallback(self) -> None:
-        """A gate with no scheme and no _GATE_SCHEME_NAMES entry falls back to gate.value."""
+    def test_gate_scheme_tag_fallback_gap(self) -> None:
+        """An OPEN+CRACK gate with no scheme tags as 'gap', not 'open'."""
         gate = Gate(gate=GateType.OPEN, recovery=RecoveryClass.CRACK)
+        assert gate_scheme_tag(gate) == "gap"
+
+    def test_gate_scheme_tag_fallback_other(self) -> None:
+        """A non-OPEN gate with no scheme falls back to the gate type value."""
+        gate = Gate(gate=GateType.OPEN, recovery=RecoveryClass.BYPASS)
         assert gate_scheme_tag(gate) == "open"
 
 

@@ -276,5 +276,9 @@ def gate_scheme_tag(gate: Gate) -> str:
     # Protection gates without a specific hash scheme use the gate type name.
     if gate.gate in _GATE_SCHEME_NAMES:
         return _GATE_SCHEME_NAMES[gate.gate]
+    # Encrypted OPEN gates with no mapped scheme (non-standard agile tuples, GAPs)
+    # must not fall through to "open" — that reads as "no protection."
+    if gate.gate is GateType.OPEN and gate.recovery in (RecoveryClass.CRACK, RecoveryClass.DECRYPT, RecoveryClass.KEYSPACE):
+        return "gap"
     # Fallback: the gate type value itself.
     return gate.gate.value
