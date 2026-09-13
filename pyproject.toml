@@ -118,6 +118,8 @@ convention = "google"
 # for 3DES-ECB (Jet ULS password decode) and DESX whitening (per [MS-OFFCRYPTO]
 # Section 2.3.4.10). N811 fires on the _Blowfish/_RC2/_TripleDES import renames.
 "src/office_password_toolkit/crypto/ciphers.py" = ["S305", "N811"]
+# hashes.py: argon2id() wraps the Argon2 spec's 6 parameters (keyword-only).
+"src/office_password_toolkit/crypto/hashes.py" = ["PLR0913"]
 
 [tool.ty.environment]
 python-version = "3.11"
