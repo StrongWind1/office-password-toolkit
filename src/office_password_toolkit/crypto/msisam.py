@@ -26,6 +26,8 @@ import hashlib
 import struct
 from dataclasses import dataclass
 
+from office_password_toolkit.crypto.ciphers import rc4 as _rc4
+
 # --- Constants (Jackcess MSISAMCryptCodecHandler / thewd-hub moneyCrk) --------
 
 _SALT_OFFSET: int = 0x72  # offset of the 8-byte salt within the RC4-decrypted header region
@@ -41,8 +43,6 @@ _PASSWORD_BUF_SIZE: int = 0x28  # 40-byte null-padded UTF-16LE password buffer
 _DIGEST_LEN: int = 16  # truncated digest length (both MD5 and SHA-1 are clipped to 16 bytes)
 _MAX_ENCRYPTED_PAGE: int = 0x0E  # pages 0-14 are encrypted; page 15+ are cleartext
 _PAGE_SIZE: int = 0x1000  # 4096-byte MSISAM page size
-_RC4_STATE_SIZE: int = 256  # RC4 S-box size (standard)
-_RC4_KEY_LEN: int = 4  # per-page key suffix length (salt XOR page number)
 
 # RC4 fixed key for header region obfuscation (Jackcess CodecHandler.MSISAM_MAX_ENCODED_PAGE).
 _HEADER_RC4_KEY: bytes = b"\xc7\xda\x39\x6b"
@@ -62,26 +62,6 @@ class MsisamParams:
     salt_check: bytes
     crypt_check: bytes
     adjustment: int
-
-
-# --- RC4 implementation -------------------------------------------------------
-
-
-def _rc4(key: bytes, data: bytes) -> bytes:
-    """RC4 encrypt/decrypt."""
-    state = list(range(_RC4_STATE_SIZE))
-    j = 0
-    for i in range(_RC4_STATE_SIZE):
-        j = (j + state[i] + key[i % len(key)]) % _RC4_STATE_SIZE
-        state[i], state[j] = state[j], state[i]
-    out = bytearray(len(data))
-    i = j = 0
-    for idx, byte in enumerate(data):
-        i = (i + 1) % _RC4_STATE_SIZE
-        j = (j + state[i]) % _RC4_STATE_SIZE
-        state[i], state[j] = state[j], state[i]
-        out[idx] = byte ^ state[(state[i] + state[j]) % _RC4_STATE_SIZE]
-    return bytes(out)
 
 
 # --- Parameter extraction -----------------------------------------------------
