@@ -95,8 +95,6 @@ convention = "google"
 "src/office_password_toolkit/constants.py" = ["S105"]
 # Typer maps each CLI option to a function parameter, so command signatures
 # legitimately exceed the positional-argument-count limit; the rule does not fit them.
-# Typer maps each CLI option to a function parameter, so command signatures
-# legitimately exceed the positional-argument-count limit; the rule does not fit them.
 # BLE001: the verify command catches broad Exception from olefile/zipfile because
 # corrupt/malformed files can raise any exception type -- the point of verify is
 # to test whether the file is structurally valid, so catching broadly IS the logic.
