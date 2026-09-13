@@ -50,7 +50,7 @@ The six runtime dependencies are pulled in automatically and need no extra flags
 | `typer` | the subcommand CLI (`info` / `unlock` / `advanced`) |
 | `rich` | the coloured status and per-gate breakdown written to stderr |
 | `olefile` (Git HEAD) | reading and rewriting OLE/CFB containers (`.doc` / `.xls` / `.ppt`, and the OLE wrapper around encrypted OOXML) |
-| `cryptography` | the AES / RC4 / Blowfish / hash / PBKDF2 primitives behind `decrypt` and hash extraction |
+| `cryptography` | AES / Blowfish / 3DES / RC2 cipher primitives behind `decrypt` and hash extraction (RC4 is pure-Python; hashes use stdlib `hashlib`) |
 | `argon2-cffi` | Argon2id key derivation for ODF 1.3 document-open encryption |
 | `typing-extensions` | `@override` backport so the format handlers keep strict typing under the 3.11 floor |
 
