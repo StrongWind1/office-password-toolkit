@@ -1,6 +1,6 @@
 # Gap Analysis — Existing Toolkit vs. Design Goals
 
-Compares the current `office-password-toolkit` (10,367 lines, 23 files) against the complete 62-gate inventory from `../research/`, the recovery techniques in `../recovery/`, and the hashcat designs in `../hashcat/`.
+Compares the current `office-password-toolkit` (~13,600 lines, 33 files) against the complete 62-gate inventory from `../research/`, the recovery techniques in `../recovery/`, and the hashcat designs in `../hashcat/`.
 
 **Related documents:**
 
