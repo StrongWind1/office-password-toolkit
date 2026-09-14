@@ -242,9 +242,8 @@ def _resolve_inputs(paths: list[Path]) -> list[Path]:
     resolved: list[Path] = []
     for p in paths:
         if p.is_dir():
-            # Walk the directory tree and collect files with Office extensions.
             for child in sorted(p.rglob("*")):
-                if child.is_file() and child.suffix.lower() in _OFFICE_EXTENSIONS:
+                if child.is_file():
                     logger.debug("directory scan: found %s", child)
                     resolved.append(child)
         elif p.is_file():
