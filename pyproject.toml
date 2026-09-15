@@ -1,6 +1,6 @@
 [project]
 name = "office-password-toolkit"
-version = "0.1.0"
+version = "0.2.0"
 description = "Detect, extract, bypass, and decrypt passwords and protection in Microsoft Office and OpenDocument files"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
