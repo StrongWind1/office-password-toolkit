@@ -220,11 +220,11 @@ def _agile_info(hash_algorithm: str, key_bits: int) -> ecma376.EncryptionInfo:
 
 
 def test_non_default_agile_tuple_uses_unified_line() -> None:
-    """A non-default agile tuple (not 9500/9600) emits the unified $office$ line, not $office-agile$."""
+    """A non-default agile tuple (not 9500/9600) emits the unified $office-open$ line."""
     info = _agile_info("SHA384", 192)
     assert O._modern_scheme(info) == (None, None)
     line = ecma376.unified_office_line(info)
-    assert line.startswith("$office$*sha384*aes192*cbc*")
+    assert line.startswith("$office-open$*sha384*aes192*cbc*")
 
 
 # --- Item 8: .doc restrict-editing (Dop) ---------------------------------------

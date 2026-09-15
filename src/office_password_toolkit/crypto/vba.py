@@ -299,10 +299,10 @@ def extract_vba_hash(dpb_value: str) -> str | None:
 
 
 def unified_vba_line(dpb_value: str) -> str | None:
-    """Emit the self-describing ``$vba$*sha1*<hash>*<salt>`` line, or ``None`` if not a hash case.
+    """Emit the self-describing ``$office-vba$*sha1*<hash>*<salt>`` line, or ``None`` if not a hash case.
 
     Grammar (docs/reference/hash-formats.md):
-    ``$vba$*<hashfunc>*<hash_hex>*<salt_hex>``
+    ``$office-vba$*<hashfunc>*<hash_hex>*<salt_hex>``
 
     SHA-1 is the only hash the VBA spec mandates ([MS-OVBA] Section 2.4.4.4). The 4-byte
     ``Key`` is the salt, appended after the MBCS password bytes before the single SHA-1 pass.
@@ -313,7 +313,7 @@ def unified_vba_line(dpb_value: str) -> str | None:
     if parsed is None:
         return None
     key, digest = parsed
-    return f"$vba$*sha1*{digest.hex()}*{key.hex()}"
+    return f"$office-vba$*sha1*{digest.hex()}*{key.hex()}"
 
 
 # --- Bypass helper ([MS-OVBA] Section 2.3.1.15-17) ---

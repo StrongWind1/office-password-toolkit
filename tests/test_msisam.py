@@ -94,10 +94,10 @@ class TestHashExtraction:
         params = extract_params(_MONEY_2008.read_bytes())
         assert params is not None
         line = msisam_hash_line(params)
-        assert line.startswith("$msisam$")
+        assert line.startswith("$office-msisam$")
         parts = line.split("$")
         assert parts[0] == ""
-        assert parts[1] == "msisam"
+        assert parts[1] == "office-msisam"
         assert parts[2] in ("0", "1")
         assert len(parts[3]) == 16
         assert len(parts[4]) == 8
@@ -157,7 +157,7 @@ class TestAccessHandlerIntegration:
         assert len(hashes) >= 1
         msisam_hashes = [h for h in hashes if h.scheme.value == "msisam"]
         assert len(msisam_hashes) == 1
-        assert msisam_hashes[0].value.startswith("$msisam$")
+        assert msisam_hashes[0].value.startswith("$office-msisam$")
 
     def test_money_2008_decrypt(self, tmp_path: Path) -> None:
         from office_password_toolkit.formats.access import AccessHandler

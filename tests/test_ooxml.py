@@ -138,7 +138,7 @@ def test_legacy_word_dialect_emits_doc_protect(handler: OoxmlHandler) -> None:
     assert len(hashes) == 1
     assert hashes[0].hashcat_mode is None
     assert hashes[0].gate is GateType.RESTRICT_EDIT
-    assert hashes[0].value.startswith("$protect$*")
+    assert hashes[0].value.startswith("$office-protect$*")
     assert "*word2007*" in hashes[0].value
 
 
@@ -146,7 +146,7 @@ def test_legacy_word_writeprotection_emits_doc_protect(handler: OoxmlHandler) ->
     # testWORD_docSecurity.docx carries the crypt* dialect on <w:writeProtection> (sid 14).
     hashes = [h for h in handler.extract(CORPUS / "testWORD_docSecurity.docx") if h.gate is GateType.MODIFY]
     assert len(hashes) == 1
-    assert hashes[0].value.startswith("$protect$*")
+    assert hashes[0].value.startswith("$office-protect$*")
     assert "*word2007*" in hashes[0].value
 
 
@@ -334,7 +334,7 @@ _XLSB_SHA1_B64 = "Q90CLEfaPWfDIIE3UmWxb1KFkhM="
 _XLSB_25300 = f"$office$2016$0$100000${_XLSB_SALT_B64}${_XLSB_SHA512_B64}"
 _XLSB_GENERALIZED_SHA1_SALT_HEX = base64.b64decode(_XLSB_SALT_B64).hex()
 _XLSB_GENERALIZED_SHA1_HASH_HEX = base64.b64decode(_XLSB_SHA1_B64).hex()
-_XLSB_GENERALIZED_SHA1 = f"$protect$*sha1*iso*100000*{_XLSB_GENERALIZED_SHA1_SALT_HEX}*{_XLSB_GENERALIZED_SHA1_HASH_HEX}"
+_XLSB_GENERALIZED_SHA1 = f"$office-protect$*sha1*iso*100000*{_XLSB_GENERALIZED_SHA1_SALT_HEX}*{_XLSB_GENERALIZED_SHA1_HASH_HEX}"
 
 
 def _lp(data: bytes) -> bytes:
@@ -383,7 +383,7 @@ def test_biff12_sheet_protection_iso_25300() -> None:
 
 
 def test_biff12_sheet_protection_iso_generalized_sha1() -> None:
-    # SHA-1 in a .xlsb record -> generalized $office$protect$ line (no hashcat mode).
+    # SHA-1 in a .xlsb record -> generalized $office-protect$ line (no hashcat mode).
     salt = base64.b64decode(_XLSB_SALT_B64)
     digest = base64.b64decode(_XLSB_SHA1_B64)
     body = (100000).to_bytes(4, "little") + b"\x00" * 64 + _ipd(digest, salt, "SHA-1")

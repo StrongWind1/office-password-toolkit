@@ -271,9 +271,9 @@ def rc4_cryptoapi_hash_line(version_digit: int, key_size_bits: int, salt: bytes,
 
 
 def unified_rc4_office_line(scheme: Rc4Scheme, salt: bytes, key_bits: int, enc_verifier: bytes, enc_verifier_hash: bytes) -> str:
-    """Emit the self-describing ``$office$*...`` line for a legacy RC4 document-open scheme.
+    """Emit the self-describing ``$office-open$*...`` line for a legacy RC4 document-open scheme.
 
-    Grammar (docs/reference/hash-formats.md): same ``$office$`` prefix as ECMA-376,
+    Grammar (docs/reference/hash-formats.md): same ``$office-open$`` prefix as ECMA-376,
     with ``hashfunc`` = ``md5`` (97/2000) or ``sha1`` (XP/2003), ``cipher`` = ``rc4-{keybits}``,
     ``mode`` = ``stream``, ``iters`` = ``0`` (un-iterated). The ``(hashfunc, cipher, mode, iters)``
     tuple distinguishes the two legacy schemes from each other and from the modern ones
@@ -281,7 +281,7 @@ def unified_rc4_office_line(scheme: Rc4Scheme, salt: bytes, key_bits: int, enc_v
     """
     hash_token = "md5" if scheme is Rc4Scheme.MD5 else "sha1"
     cipher_token = f"rc4-{key_bits}"
-    return f"$office$*{hash_token}*{cipher_token}*stream*0*{salt.hex()}*{enc_verifier.hex()}*{enc_verifier_hash.hex()}"
+    return f"$office-open$*{hash_token}*{cipher_token}*stream*0*{salt.hex()}*{enc_verifier.hex()}*{enc_verifier_hash.hex()}"
 
 
 # --- Header parsing and scheme discrimination ---

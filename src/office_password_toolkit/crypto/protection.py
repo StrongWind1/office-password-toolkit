@@ -276,17 +276,17 @@ def word2007_protection_verify(password: str, crypt_algorithm_sid: int, spin_cou
     return hashes.compare_digest(h, expected)
 
 
-# --- Unified $protect$ line (docs/reference/hash-formats.md) ---
+# --- Unified $office-protect$ line (docs/reference/hash-formats.md) ---
 
 
 _SID_TO_HASH: Final[dict[int, str]] = {1: "md2", 2: "md4", 3: "md5", 4: "sha1", 12: "sha256", 13: "sha384", 14: "sha512"}
 
 
 def unified_protect_line(algorithm_name: str, kdf: str, spin_count: int, salt_b64: str, hash_b64: str) -> str:
-    """Emit the self-describing ``$protect$*...`` line for any ISO or Word 2007 protection verifier.
+    """Emit the self-describing ``$office-protect$*...`` line for any ISO or Word 2007 protection verifier.
 
     Grammar (docs/reference/hash-formats.md):
-    ``$protect$*<hashfunc>*<kdf>*<iters>*<salt_hex>*<hash_hex>``
+    ``$office-protect$*<hashfunc>*<kdf>*<iters>*<salt_hex>*<hash_hex>``
 
     ``kdf`` is ``iso`` for the standard ISO write-protection KDF ([MS-OFFCRYPTO] Section 2.4.2.4:
     salt prepended, counter appended, no block key) or ``word2007`` for the legacy three-stage
@@ -296,12 +296,12 @@ def unified_protect_line(algorithm_name: str, kdf: str, spin_count: int, salt_b6
     hash_token = _canonical_algorithm(algorithm_name).lower().replace("-", "")
     salt_hex = b64decode(salt_b64).hex()
     hash_hex = b64decode(hash_b64).hex()
-    return f"$protect$*{hash_token}*{kdf}*{spin_count}*{salt_hex}*{hash_hex}"
+    return f"$office-protect$*{hash_token}*{kdf}*{spin_count}*{salt_hex}*{hash_hex}"
 
 
 def unified_protect_line_from_sid(crypt_algorithm_sid: int, spin_count: int, salt_b64: str, hash_b64: str) -> str:
-    """Emit the ``$protect$*...`` line from a Word 2007 ``cryptAlgorithmSid``."""
+    """Emit the ``$office-protect$*...`` line from a Word 2007 ``cryptAlgorithmSid``."""
     hash_token = _SID_TO_HASH.get(crypt_algorithm_sid, f"sid{crypt_algorithm_sid}")
     salt_hex = b64decode(salt_b64).hex()
     hash_hex = b64decode(hash_b64).hex()
-    return f"$protect$*{hash_token}*word2007*{spin_count}*{salt_hex}*{hash_hex}"
+    return f"$office-protect$*{hash_token}*word2007*{spin_count}*{salt_hex}*{hash_hex}"

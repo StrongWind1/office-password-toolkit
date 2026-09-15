@@ -471,10 +471,10 @@ def office_hash_line(info: EncryptionInfo) -> str:
 
 
 def unified_office_line(info: EncryptionInfo) -> str:
-    r"""Emit the self-describing ``$office$*...`` line for any ECMA-376 scheme.
+    r"""Emit the self-describing ``$office-open$*...`` line for any ECMA-376 scheme.
 
     Grammar (docs/reference/hash-formats.md):
-    ``$office$*<hashfunc>*<cipher>*<mode>*<iters>*<salt>*<encverifier>*<encverifierhash>``
+    ``$office-open$*<hashfunc>*<cipher>*<mode>*<iters>*<salt>*<encverifier>*<encverifierhash>``
 
     Covers standard (AES-ECB, fixed SHA-1 50k), agile (any hash x cipher x chaining x spin),
     and every non-default tuple — no ValueError, no mode table, no year numbers. The
@@ -491,11 +491,11 @@ def unified_office_line(info: EncryptionInfo) -> str:
     verifier_hex = info.enc_verifier.hex()
     hash_prefix = _SHA1_SIZE if info.kind is EncryptionKind.STANDARD else 2 * _AES_BLOCK
     verifier_hash_hex = info.enc_verifier_hash[:hash_prefix].hex()
-    return f"$office$*{hash_token}*{cipher_token}*{mode_token}*{info.spin_count}*{salt_hex}*{verifier_hex}*{verifier_hash_hex}"
+    return f"$office-open$*{hash_token}*{cipher_token}*{mode_token}*{info.spin_count}*{salt_hex}*{verifier_hex}*{verifier_hash_hex}"
 
 
 def _unified_hash_token(spec_name: str) -> str:
-    """Map a spec hash algorithm string to the lowercase token for the unified ``$office$`` line."""
+    """Map a spec hash algorithm string to the lowercase token for the unified ``$office-open$`` line."""
     squashed = "".join(ch for ch in spec_name.upper() if ch.isalnum())
     return {
         "SHA1": "sha1",

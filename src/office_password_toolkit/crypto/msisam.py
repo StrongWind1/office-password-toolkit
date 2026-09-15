@@ -127,9 +127,9 @@ def verify_password(params: MsisamParams, password: str) -> bool:
 
 
 def msisam_hash_line(params: MsisamParams) -> str:
-    """Emit a custom ``$msisam$`` hash line for offline cracking.
+    """Emit a custom ``$office-msisam$`` hash line for offline cracking.
 
-    Format: ``$msisam$<algo>$<salt_hex>$<crypt_check_hex>$<adjustment>``
+    Format: ``$office-msisam$<algo>$<salt_hex>$<crypt_check_hex>$<adjustment>``
 
     * ``algo``: ``1`` for SHA-1, ``0`` for MD5
     * ``salt_hex``: 8-byte salt from offset 0x72 (hex-encoded)
@@ -137,7 +137,7 @@ def msisam_hash_line(params: MsisamParams) -> str:
     * ``adjustment``: integer offset adjustment for Money 2003+
     """
     algo = 1 if params.use_sha1 else 0
-    return f"$msisam${algo}${params.salt_full.hex()}${params.crypt_check.hex()}${params.adjustment}"
+    return f"$office-msisam${algo}${params.salt_full.hex()}${params.crypt_check.hex()}${params.adjustment}"
 
 
 # --- Page decryption ----------------------------------------------------------

@@ -32,7 +32,7 @@ def test_info_single_file():
     """info on a single encrypted file: exit 0, stdout has hash, stderr has human-readable detail."""
     result = runner.invoke(app, ["info", _ENCRYPTED_DOCX])
     assert result.exit_code == 0
-    assert "$office$" in result.stdout
+    assert "$office-open$" in result.stdout
     assert "Word document (encrypted)" in result.stderr
     assert "Document-open password" in result.stderr
 
@@ -73,7 +73,7 @@ def test_info_json():
     assert result.exit_code == 0
 
     # stdout still carries the hash line.
-    assert "$office$" in result.stdout
+    assert "$office-open$" in result.stdout
 
     # stderr should be parseable JSON.
     payload = json.loads(result.stderr)
@@ -93,7 +93,7 @@ def test_info_quiet():
     """info -q: stderr is empty (hash lines only on stdout)."""
     result = runner.invoke(app, ["info", "-q", _ENCRYPTED_DOCX])
     assert result.exit_code == 0
-    assert "$office$" in result.stdout
+    assert "$office-open$" in result.stdout
     assert result.stderr == ""
 
 
@@ -151,7 +151,7 @@ def test_advanced_extract():
     """advanced extract on an encrypted file: stdout carries hash line."""
     result = runner.invoke(app, ["advanced", "extract", _ENCRYPTED_DOCX])
     assert result.exit_code == 0
-    assert "$office$" in result.stdout
+    assert "$office$*2013*" in result.stdout
 
 
 def test_advanced_strip(tmp_path: Path):
