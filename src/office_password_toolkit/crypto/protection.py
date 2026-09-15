@@ -68,7 +68,7 @@ _MODE_25300_SIGNATURE: Final = "$office$2016$0"
 # hashcat 25300 only ingests the SHA-512/spin-100000/16-byte-salt shape, so every
 # other ISO primitive/spin/salt is a coverage gap. iso-protection-hash.md Section 7
 # proposes a generalized line that also carries the primitive and an arbitrary salt:
-#   $office$protect$<algo_id>$<spinCount>$<saltValue_b64>$<hashValue_b64>
+#   $office-protect$*<hashfunc>*<kdf>*<spinCount>*<salt_hex>*<hash_hex>
 # algo_id and the digest byte width per primitive are pinned by the [MS-OFFCRYPTO]
 # Section 2.4.2.4 reserved-value table (widths repeated in iso-protection-hash.md
 # Section 6). The width lets a caller check the hash is the primitive it claims.
@@ -85,16 +85,16 @@ _PROTECT_ALGO_PROFILES: Final[dict[str, tuple[int, int]]] = {
 _SPIN_COUNT_MAX: Final = 10_000_000
 _SALT_LEN_MAX: Final = 65_536
 
-# Word 2007 legacy documentProtection/writeProtection line
-# (word2007-documentprotection.md Section 7). This is a DIFFERENT construction from
+# Legacy crypt* documentProtection/writeProtection line
+# (crypt-documentprotection.md Section 7). This is a DIFFERENT construction from
 # the ISO KDF above -- a legacy-derived, salt-appended, iterated hash whose exact
-# stage-1 math is UNCONFIRMED in the corpus (word2007-documentprotection.md Section
+# stage-1 math is UNCONFIRMED in the corpus (crypt-documentprotection.md Section
 # 6.1), so this module only FORMATS the extraction line and does not recompute it.
-#   $doc-protect$1*<cryptAlgorithmSid>*<cryptSpinCount>*<salt_b64>*<hash_b64>
-# The leading type digit 1 selects the Word-2007 legacy-derived generation. The
+#   $office-protect$*<hashfunc>*crypt*<spinCount>*<salt_hex>*<hash_hex>
+# The ``crypt`` KDF token selects the crypt* legacy-derived generation. The
 # cryptAlgorithmSid is a CryptoAPI ALG_SID whose digest width is fixed
-# (word2007-documentprotection.md Section 6, [MS-OE376] Section 2.1.410 note h).
-_WORD2007_SID_DIGESTS: Final[dict[int, int]] = {
+# (crypt-documentprotection.md Section 6, [MS-OE376] Section 2.1.410 note h).
+_CRYPT_SID_DIGESTS: Final[dict[int, int]] = {
     1: 16,  # MD2
     2: 16,  # MD4
     3: 16,  # MD5
@@ -103,7 +103,7 @@ _WORD2007_SID_DIGESTS: Final[dict[int, int]] = {
     13: 48,  # SHA-384
     14: 64,  # SHA-512
 }
-_WORD2007_SID_CANONICAL: Final[dict[int, str]] = {
+_CRYPT_SID_CANONICAL: Final[dict[int, str]] = {
     1: "MD2",
     2: "MD4",
     3: "MD5",
@@ -112,8 +112,8 @@ _WORD2007_SID_CANONICAL: Final[dict[int, str]] = {
     13: "SHA-384",
     14: "SHA-512",
 }
-# Word clamps the iteration count tighter than the ISO carriers ([MS-OE376] Section 2.1.410 note j).
-_WORD2007_SPIN_MAX: Final = 5_000_000
+# crypt* schema clamps the iteration count tighter than ISO ([MS-OE376] Section 2.1.410 note j).
+_CRYPT_SPIN_MAX: Final = 5_000_000
 
 
 def _canonical_algorithm(algorithm_name: str) -> str:
@@ -236,11 +236,11 @@ def hash_line_25300(salt_b64: str, hash_b64: str, spin_count: int = _MODE_25300_
     return f"{_MODE_25300_SIGNATURE}${spin_count}${b64encode(salt).decode('ascii')}${b64encode(digest).decode('ascii')}"
 
 
-def word2007_protection_verify(password: str, crypt_algorithm_sid: int, spin_count: int, salt_b64: str, hash_b64: str) -> bool:
-    """Verify a password against a Word 2007 legacy ``crypt*`` protection hash.
+def crypt_protection_verify(password: str, crypt_algorithm_sid: int, spin_count: int, salt_b64: str, hash_b64: str) -> bool:
+    """Verify a password against a legacy ``crypt*`` protection hash.
 
-    The Word 2007 ``crypt*`` dialect (``cryptAlgorithmSid`` / ``cryptSpinCount``
-    / ``w:salt`` / ``w:hash`` on ``<w:documentProtection>`` or
+    The ``crypt*`` dialect (``cryptAlgorithmSid`` / ``cryptSpinCount`` /
+    ``w:salt`` / ``w:hash`` on ``<w:documentProtection>`` or
     ``<w:writeProtection>``) uses a KDF whose exact iteration math has NOT been
     confirmed against any public spec or reference implementation. The ISO KDF
     (counter APPENDED), the agile document-open KDF (counter PREPENDED), and
@@ -251,7 +251,7 @@ def word2007_protection_verify(password: str, crypt_algorithm_sid: int, spin_cou
     first reduced through ``CreatePasswordVerifier_Method2`` (a 32-bit legacy hash),
     then rendered as uppercase hex LE-bytes, UTF-16LE-encoded, and hashed with the
     salt PREPENDED and the counter appended per round. Confirmed against 4 corpus
-    vectors from Office 2007 and 2013. Note: the analysis doc (word2007-documentprotection.md
+    vectors from Office 2007 and 2013. Note: the analysis doc (crypt-documentprotection.md
     §4) says salt is appended per [MS-OE376] §2.1.410 note f, but empirical testing
     shows salt is prepended — `H(salt || X)`, not `H(X || salt)`.
 
@@ -259,11 +259,11 @@ def word2007_protection_verify(password: str, crypt_algorithm_sid: int, spin_cou
     instead — raw UTF-16LE password, salt prepended, counter appended — the same
     construction as ``iso_protection_hash`` (confirmed against corpus vectors).
     """
-    digest_len = _WORD2007_SID_DIGESTS.get(crypt_algorithm_sid)
+    digest_len = _CRYPT_SID_DIGESTS.get(crypt_algorithm_sid)
     if digest_len is None:
         msg = f"cryptAlgorithmSid {crypt_algorithm_sid} is not a Word-supported primitive"
         raise ValueError(msg)
-    canonical = _WORD2007_SID_CANONICAL[crypt_algorithm_sid]
+    canonical = _CRYPT_SID_CANONICAL[crypt_algorithm_sid]
     hash_ctor = _resolve_hash(canonical)
     salt = b64decode(salt_b64)
     expected = b64decode(hash_b64)
@@ -289,8 +289,8 @@ def unified_protect_line(algorithm_name: str, kdf: str, spin_count: int, salt_b6
     ``$office-protect$*<hashfunc>*<kdf>*<iters>*<salt_hex>*<hash_hex>``
 
     ``kdf`` is ``iso`` for the standard ISO write-protection KDF ([MS-OFFCRYPTO] Section 2.4.2.4:
-    salt prepended, counter appended, no block key) or ``word2007`` for the legacy three-stage
-    Word 2007 KDF ([MS-OE376] Section 2.1.410). Salt and hash are base64-decoded to lowercase
+    salt prepended, counter appended, no block key) or ``crypt`` for the legacy three-stage
+    ``crypt*`` KDF ([MS-OE376] Section 2.1.410). Salt and hash are base64-decoded to lowercase
     hex for uniform byte representation across all formats.
     """
     hash_token = _canonical_algorithm(algorithm_name).lower().replace("-", "")
@@ -304,4 +304,4 @@ def unified_protect_line_from_sid(crypt_algorithm_sid: int, spin_count: int, sal
     hash_token = _SID_TO_HASH.get(crypt_algorithm_sid, f"sid{crypt_algorithm_sid}")
     salt_hex = b64decode(salt_b64).hex()
     hash_hex = b64decode(hash_b64).hex()
-    return f"$office-protect$*{hash_token}*word2007*{spin_count}*{salt_hex}*{hash_hex}"
+    return f"$office-protect$*{hash_token}*crypt*{spin_count}*{salt_hex}*{hash_hex}"

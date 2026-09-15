@@ -132,7 +132,7 @@ nav:
       - RC4 MD5 Legacy: research/algorithms/password/rc4-md5-legacy.md
       - XOR Obfuscation: research/algorithms/password/xor-obfuscation.md
       - ISO Protection Hash: research/algorithms/password/iso-protection-hash.md
-      - Word 2007 Protection: research/algorithms/password/word2007-documentprotection.md
+      - Crypt Protection: research/algorithms/password/crypt-documentprotection.md
       - ODF Encryption: research/algorithms/password/odf-encryption.md
       - VBA Project Password: research/algorithms/password/vba-project-password.md
       - PST CRC-32: research/algorithms/password/pst-crc32.md

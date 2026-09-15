@@ -74,7 +74,7 @@ _CRYPT_EDP: Final = 0x10
 
 # The advisory PidTagPstPassword verifier has no dedicated HashScheme: it is a
 # bare CRC-32 of the password with no hashcat/John mode (pst-crc32.md Section 9),
-# and HashScheme lives in models.py. We surface the $pst$ line through extract for
+# and HashScheme lives in models.py. We surface the PST CRC-32 line through extract for
 # pipeline uniformity, tagging it with the nearest bare-password-verifier scheme
 # (VBA is likewise verifier = H(password), recovered by dictionary/collide rather
 # than by decrypting ciphertext) and a None hashcat mode. The authoritative

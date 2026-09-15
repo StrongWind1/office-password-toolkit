@@ -100,13 +100,13 @@ flowchart LR
 |---|---|---|---|
 | [../research/algorithms/password/ecma376-agile.md](../research/algorithms/password/ecma376-agile.md) | `crypto/ecma376.py` | `verify_password()`, `decrypt_package()` | `$office$*2013*...` / `$office$*sha512*...` |
 | [../research/algorithms/password/ecma376-standard.md](../research/algorithms/password/ecma376-standard.md) | `crypto/ecma376.py` | `verify_password()`, `decrypt_package()` | `$office$*2007*...` / `$office$*sha1*aes128*...` |
-| [../research/algorithms/password/rc4-cryptoapi-sha1.md](../research/algorithms/password/rc4-cryptoapi-sha1.md) | `crypto/rc4legacy.py` | `rc4_cryptoapi_verify()` | `$oldoffice$3*...` / `$office$*sha1*rc4*...` |
-| [../research/algorithms/password/rc4-md5-legacy.md](../research/algorithms/password/rc4-md5-legacy.md) | `crypto/rc4legacy.py` | `rc4_md5_verify()` | `$oldoffice$0*...` / `$office$*md5*rc4*...` |
+| [../research/algorithms/password/rc4-cryptoapi-sha1.md](../research/algorithms/password/rc4-cryptoapi-sha1.md) | `crypto/rc4legacy.py` | `rc4_cryptoapi_verify()` | `$oldoffice$3*...` / `$office-open$*sha1*rc4*...` |
+| [../research/algorithms/password/rc4-md5-legacy.md](../research/algorithms/password/rc4-md5-legacy.md) | `crypto/rc4legacy.py` | `rc4_md5_verify()` | `$oldoffice$0*...` / `$office-open$*md5*rc4*...` |
 | [../research/algorithms/password/xor-obfuscation.md](../research/algorithms/password/xor-obfuscation.md) | `crypto/xor.py` | `xor_decode_method1()`, `reconstruct_password()` | No hash line — DECODE/COLLIDE |
-| [../research/algorithms/password/iso-protection-hash.md](../research/algorithms/password/iso-protection-hash.md) | `crypto/protection.py` | `verify()`, `hash_line_25300()` | `$office$2016$0$...` / `$protect$*sha512*...` |
-| [../research/algorithms/password/word2007-documentprotection.md](../research/algorithms/password/word2007-documentprotection.md) | `crypto/protection.py` | `word2007_protection_verify()` | `$protect$*sha1*word2007*...` |
+| [../research/algorithms/password/iso-protection-hash.md](../research/algorithms/password/iso-protection-hash.md) | `crypto/protection.py` | `verify()`, `hash_line_25300()` | `$office$2016$0$...` / `$office-protect$*sha512*...` |
+| [../research/algorithms/password/crypt-documentprotection.md](../research/algorithms/password/crypt-documentprotection.md) | `crypto/protection.py` | `crypt_protection_verify()` | `$office-protect$*sha1*crypt*...` |
 | [../research/algorithms/password/odf-encryption.md](../research/algorithms/password/odf-encryption.md) | `crypto/odf.py` | `verify()`, `decrypt_entry()` | `$odf$*0*0*...` / `$odf$*sha1*pbkdf2*bf*...` |
-| [../research/algorithms/password/vba-project-password.md](../research/algorithms/password/vba-project-password.md) | `crypto/vba.py` | `decode_data_encryption()`, `extract_vba_hash()` | `sha1hex:keyhex` / `$vba$*sha1*...*...` |
+| [../research/algorithms/password/vba-project-password.md](../research/algorithms/password/vba-project-password.md) | `crypto/vba.py` | `decode_data_encryption()`, `extract_vba_hash()` | `sha1hex:keyhex` / `$office-vba$*sha1*...*...` |
 | [../research/algorithms/password/pst-crc32.md](../research/algorithms/password/pst-crc32.md) | `crypto/pst.py` | `password_crc()`, `crc_collision()` | No hash line — COLLIDE |
 | [../research/algorithms/non-password/pst-body-cipher.md](../research/algorithms/non-password/pst-body-cipher.md) | `crypto/pst.py` | `permute_decode()`, `cyclic_decode()` | No hash — DECODE |
 | [../research/algorithms/non-password/irm-rms-encryption.md](../research/algorithms/non-password/irm-rms-encryption.md) | — (not recoverable) | — | RecoveryClass.NONE |
@@ -149,7 +149,7 @@ How the self-describing `--format opt` lines map to hashcat modes:
 | `sha1 * rc4 * stream * 0` | 9800 | Office XP/2003 |
 | Any other agile tuple | — (GAP) | Toolkit verifies in Python |
 
-### `$protect$` — editing/permission verifiers
+### `$office-protect$` — editing/permission verifiers
 
 | Scheme fields | hashcat mode | Notes |
 |---|---|---|

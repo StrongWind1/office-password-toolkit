@@ -74,7 +74,7 @@ flowchart LR
 |---|---|
 | [ECMA-376 Agile](./ecma376-agile.md) | Same initial hash but iterator **PREPENDED** + block key final step |
 | [XOR Obfuscation](./xor-obfuscation.md) | Legacy 16-bit verifier; feeds the dual-hash path |
-| [Word 2007 documentProtection](./word2007-documentprotection.md) | Legacy three-stage KDF with `cryptAlgorithmSid`; salt APPENDED |
+| [Word 2007 documentProtection](./crypt-documentprotection.md) | Legacy three-stage KDF with `cryptAlgorithmSid`; salt APPENDED |
 | [ECMA-376 Standard](./ecma376-standard.md) | Document-open encryption predecessor |
 
 ## Extraction Target
@@ -140,7 +140,7 @@ Products: Word (.docx/.docm/.dotx), Excel (.xlsx/.xlsm/.xltx/.xltm/.xlsb), Power
 Related algorithms:
 - The document-open agile encryption KDF (`./ecma376-agile.md`) uses the same `H(salt + password)` initial hash but **prepends** the iterator and appends a block key — the opposite per-round order and an additional final step
 - The legacy 16-bit XOR verifier (`./xor-obfuscation.md`, `CreatePasswordVerifier_Method1`) is the pre-ISO binary carrier verifier
-- The legacy Word `documentProtection` dialect uses `cryptAlgorithmSid`/`cryptSpinCount`/`hash`/`salt` attributes with a different three-stage algorithm (see section 6.1 and `./word2007-documentprotection.md`)
+- The legacy Word `documentProtection` dialect uses `cryptAlgorithmSid`/`cryptSpinCount`/`hash`/`salt` attributes with a different three-stage algorithm (see section 6.1 and `./crypt-documentprotection.md`)
 
 ## 2. Profiles / parameters
 
@@ -483,7 +483,7 @@ When both legacy and ISO attributes are present on `<w:writeProtection>`, Word i
 
 PowerPoint's legacy `modifyVerifier` uses `cryptAlgorithmSid` values 1, 2, 3, 4, 12, 13, and 14 ([MS-OI29500] section 2.1.1104 note e) and follows the same pattern ([MS-OI29500] section 2.1.1104 note b).
 
-For the full legacy Word/PowerPoint algorithm, see `./word2007-documentprotection.md`.
+For the full legacy Word/PowerPoint algorithm, see `./crypt-documentprotection.md`.
 
 ## 7. Reference constants
 
@@ -661,7 +661,7 @@ For a `dialogsheet` parent element, Office requires that the dialog sheet is pro
 - `./ecma376-agile.md` — ECMA-376 Agile Encryption (document-open, prepended iterator, block key)
 - `./ecma376-standard.md` — ECMA-376 Standard Encryption
 - `./xor-obfuscation.md` — XOR Obfuscation and legacy 16-bit verifier (`CreatePasswordVerifier_Method1`)
-- `./word2007-documentprotection.md` — Word 2007 documentProtection legacy dialect (three-stage KDF with `cryptAlgorithmSid`)
+- `./crypt-documentprotection.md` — Word 2007 documentProtection legacy dialect (three-stage KDF with `cryptAlgorithmSid`)
 - `../non-password/irm-rms-encryption.md` — IRM/RMS encryption (separate protection mechanism)
 - `../../formats/word.md` — Word format reference
 - `../../formats/excel.md` — Excel format reference

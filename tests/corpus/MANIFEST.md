@@ -51,7 +51,7 @@ Passwords: encrypted → `Open1234_` (ODF → `Odf1234_`); per-gate in `password
 
 | axis | values |
 | --- | --- |
-| compat | Standard (`$office$*2007` → 9400), Agile (`$office$*2010` → 9500, `$office$*2013` → 9600, `$office-agile$`) |
+| compat | Standard (`$office$*2007` → 9400), Agile (`$office$*2010` → 9500, `$office$*2013` → 9600, `$office-open$`) |
 | hash | SHA-1, SHA-256, SHA-384, SHA-512, MD5 |
 | cipher | AES-128/192/256, 3DES, 3DES-112, DES, DESX, RC2 |
 | chaining | CBC, CFB |

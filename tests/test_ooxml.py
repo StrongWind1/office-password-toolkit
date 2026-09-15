@@ -122,7 +122,7 @@ def test_no_line_when_no_password(handler: OoxmlHandler) -> None:
 
 
 def test_legacy_word_dialect_emits_doc_protect(handler: OoxmlHandler) -> None:
-    # protected_sample.docx carries the crypt* (Word 2007) dialect -> $doc-protect$ line,
+    # protected_sample.docx carries the crypt* dialect -> $office-protect$*...*crypt* line,
     # no shipped hashcat mode. The salt/hash must match word/settings.xml verbatim.
     gates = handler.gates(CORPUS / "protected_sample.docx")
     restrict = next(g for g in gates if g.gate is GateType.RESTRICT_EDIT)
@@ -139,7 +139,7 @@ def test_legacy_word_dialect_emits_doc_protect(handler: OoxmlHandler) -> None:
     assert hashes[0].hashcat_mode is None
     assert hashes[0].gate is GateType.RESTRICT_EDIT
     assert hashes[0].value.startswith("$office-protect$*")
-    assert "*word2007*" in hashes[0].value
+    assert "*crypt*" in hashes[0].value
 
 
 def test_legacy_word_writeprotection_emits_doc_protect(handler: OoxmlHandler) -> None:
@@ -147,7 +147,7 @@ def test_legacy_word_writeprotection_emits_doc_protect(handler: OoxmlHandler) ->
     hashes = [h for h in handler.extract(CORPUS / "testWORD_docSecurity.docx") if h.gate is GateType.MODIFY]
     assert len(hashes) == 1
     assert hashes[0].value.startswith("$office-protect$*")
-    assert "*word2007*" in hashes[0].value
+    assert "*crypt*" in hashes[0].value
 
 
 # --- bypass: strips the element, leaves the input byte-identical, stays a valid zip ---

@@ -235,7 +235,7 @@ def test_gates_ansi_cyclic(tmp_path: Path) -> None:
     assert GateType.OPEN in gates
 
 
-# --- extract ($pst$ line) -------------------------------------------------
+# --- extract (PST CRC-32 hash line) ----------------------------------------
 
 
 def test_extract_returns_empty_for_pst(tmp_path: Path) -> None:

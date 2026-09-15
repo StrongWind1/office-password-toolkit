@@ -198,7 +198,7 @@ def test_filesharing_verifier_read_at_offset_two() -> None:
     assert records[0].verifier == 0x4321
 
 
-# --- Item 6: non-default agile tuple emits the generalized $office-agile$ line ---
+# --- Item 6: non-default agile tuple emits the generalized $office-open$ line ---
 
 
 def _agile_info(hash_algorithm: str, key_bits: int) -> ecma376.EncryptionInfo:

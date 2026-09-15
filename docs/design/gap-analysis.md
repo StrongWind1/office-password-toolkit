@@ -55,7 +55,7 @@ flowchart LR
 | Write reservation (ISO) | Excel .xlsx/.xlsb | `crypto/protection.py` + `formats/ooxml.py` | ✅ | ✅ | ✅ | ✅ |
 | Revision protection (ISO) | Excel .xlsx/.xlsb | `crypto/protection.py` + `formats/ooxml.py` | ✅ | ✅ | ✅ | ✅ |
 | Document protection ISO | Word .docx | `crypto/protection.py` + `formats/ooxml.py` | ✅ | ✅ | ✅ | ✅ |
-| Document protection Word2007 | Word .docx | `crypto/protection.py` + `formats/ooxml.py` | ✅ | ✅ | ✅ | ✅ |
+| Document protection crypt | Word .docx | `crypto/protection.py` + `formats/ooxml.py` | ✅ | ✅ | ✅ | ✅ |
 | Write protection ISO | Word .docx | `crypto/protection.py` + `formats/ooxml.py` | ✅ | ✅ | ✅ | ✅ |
 | Modify verifier ISO | PPT .pptx | `crypto/protection.py` + `formats/ooxml.py` | ✅ | ✅ | ✅ | ✅ |
 | VBA project lock | All VBA hosts | `crypto/vba.py` | ✅ | ✅ | ✅ | ✅ |
@@ -123,10 +123,10 @@ flowchart LR
 
 | Format family | Emitter | Status |
 |---|---|---|
-| `$office$*<hashfunc>*<cipher>*<mode>*<iters>*...` | `crypto/ecma376.py` → `unified_office_line()` | ✅ |
-| `$protect$*<hashfunc>*<kdf>*<iters>*...` | `crypto/protection.py` → `unified_protect_line()` | ✅ |
+| `$office-open$*<hashfunc>*<cipher>*<mode>*<iters>*...` | `crypto/ecma376.py` → `unified_office_line()` | ✅ |
+| `$office-protect$*<hashfunc>*<kdf>*<iters>*...` | `crypto/protection.py` → `unified_protect_line()` | ✅ |
 | `$odf$*<startkey>*<kdf>*<cipher>*<iters>*...` | `crypto/odf.py` → `unified_odf_line()` | ✅ |
-| `$vba$*<hashfunc>*<hash>*<salt>` | `crypto/vba.py` → `unified_vba_line()` | ✅ |
+| `$office-vba$*<hashfunc>*<hash>*<salt>` | `crypto/vba.py` → `unified_vba_line()` | ✅ |
 
 ### New hashcat modes (from `hash_analysis/new_hashcat/`)
 

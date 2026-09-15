@@ -24,8 +24,8 @@ Gates enumerated (see ``docs/reference/gates.md`` and the analysis corpus
   a hash line (iso-protection-hash.md Section 3.3 / 10.4).
 * Word ``word/settings.xml`` ``<w:writeProtection>`` -> Modify and
   ``<w:documentProtection>`` -> Restrict Editing. The ISO ``*Value`` dialect emits a
-  25300 or generalized ``$office$protect$`` line; the legacy ``crypt*`` dialect emits
-  the ``$doc-protect$`` line (word2007-documentprotection.md Section 7).
+  25300 or generalized ``$office-protect$`` line; the legacy ``crypt*`` dialect emits
+  an ``$office-protect$*...*crypt*...`` line (crypt-documentprotection.md Section 7).
 * PowerPoint ``ppt/presentation.xml`` ``<p:modifyVerifier>`` -> Modify.
 * ``*/vbaProject.bin`` (an embedded OLE blob) -> Macro project lock (VBA).
 * ``_xmlsignatures/`` parts -> Digital signature.
@@ -34,7 +34,7 @@ Every ISO protection carrier ([MS-OFFCRYPTO] Section 2.4.2.4) exposes
 ``algorithmName``/``saltValue``/``hashValue``/``spinCount`` in the clear. Only the
 modern default shape -- SHA-512, spinCount 100000, 16-byte salt -- has a shipped
 hashcat mode (25300); every other primitive/spin/salt length is emitted as the
-generalized ``$office$protect$`` line (iso-protection-hash.md Section 7) with no
+generalized ``$office-protect$`` line (iso-protection-hash.md Section 7) with no
 hashcat mode. Because the package body is never encrypted by any of these gates,
 the fast path is always STRIP (delete the element), which :meth:`bypass` does on a
 fresh copy of the package.
@@ -152,9 +152,9 @@ _WB_REVISION_ATTRS: Final = ("lockRevision", "revisionsAlgorithmName", "revision
 # --- Friendly notes attached to gates/hashes ---
 
 _NOTE_25300: Final = "ISO SHA-512 verifier -- crackable with hashcat -m 25300, but the body is not encrypted so STRIP is the fast path"
-_NOTE_GENERALIZED: Final = "ISO protection verifier; no hashcat mode -- generalized $office$protect$ line (iso-protection-hash.md Section 7); body is not encrypted so STRIP is the fast path"
+_NOTE_GENERALIZED: Final = "ISO protection verifier; no hashcat mode -- generalized $office-protect$ line (iso-protection-hash.md Section 7); body is not encrypted so STRIP is the fast path"
 _NOTE_SIGNATURE: Final = "digital signature carries no password secret; run `opt bypass --remove-signatures` to drop the _xmlsignatures/ parts and the integrity claim"
-_NOTE_WORD_LEGACY: Final = "Word 2007 legacy documentProtection/writeProtection dialect (crypt* attributes); no hashcat mode -- generalized $doc-protect$ line (word2007-documentprotection.md Section 7); STRIP is the fast path"
+_NOTE_WORD_LEGACY: Final = "Legacy crypt* documentProtection/writeProtection dialect; no hashcat mode -- $office-protect$*...*crypt*... line (crypt-documentprotection.md Section 7); STRIP is the fast path"
 _NOTE_XLSB: Final = "binary BIFF12 ISO protection record; the IsoPasswordData body did not parse, so no hash line (bypass does not rewrite binary parts)"
 _NOTE_VBA_HASH: Final = "VBA project locked; SHA-1 verifier -> hashcat -m 110 (or STRIP the DPB lock -- macro source is not encrypted)"
 _NOTE_VBA_OTHER: Final = "VBA project locked with a cleartext/obfuscated DPB (no crackable verifier); STRIP the DPB lock"
@@ -279,7 +279,7 @@ def _protection_finding(gate: GateType, where: str, material: _Material | None) 
     non-25300 lines carry no shipped hashcat mode, so ``hashcat_mode`` is ``None``;
     the ``OFFICE_SHEETPROT`` scheme is reused as the office-protection-verifier
     family label (the enum has no dedicated generalized value and ``models.py`` is
-    out of scope here), and the ``$office$protect$`` prefix disambiguates the line.
+    out of scope here), and the ``$office-protect$`` prefix disambiguates the line.
     """
     if material is None:
         return _Finding(gate, RecoveryClass.STRIP, where)
@@ -332,10 +332,10 @@ def _word_finding(gate: GateType, where: str, attrs: dict[str, str]) -> _Finding
     """Classify a Word protection element: ISO dialect vs legacy ``crypt*`` dialect vs flag-only.
 
     The ISO dialect (``algorithmName``/``saltValue``/``hashValue``/``spinCount``) goes
-    through :func:`_protection_finding` (25300 or generalized). The legacy Word 2007
+    through :func:`_protection_finding` (25300 or generalized). The legacy crypt*
     dialect (``cryptAlgorithmSid``/``cryptSpinCount``/``salt``/``hash``) is a different
-    salt-appended, legacy-derived KDF (word2007-documentprotection.md Section 6.1)
-    with no hashcat mode; we emit its generalized ``$doc-protect$`` extraction line.
+    salt-appended, legacy-derived KDF (crypt-documentprotection.md Section 6.1)
+    with no hashcat mode; we emit its ``$office-protect$*...*crypt*...`` extraction line.
     """
     material = _iso_material(attrs, "")
     if material is not None:
@@ -874,8 +874,8 @@ class OoxmlHandler(FormatHandler):
         """Return the crackable hash lines from every protection carrier.
 
         Emits the ISO SHA-512 (25300) verifier when the shape fits, otherwise the
-        generalized ``$office$protect$`` line (SHA-1 / non-100000 spin / non-16-byte
-        salt); the legacy Word ``$doc-protect$`` line; the ``.xlsb`` binary records'
+        generalized ``$office-protect$`` line (SHA-1 / non-100000 spin / non-16-byte
+        salt); the legacy ``$office-protect$*...*crypt*`` line; the ``.xlsb`` binary records'
         lines; and the VBA (110) line. Lines with no shipped hashcat mode carry
         ``hashcat_mode = None``. A carrier that exposes no password material (options
         only) keeps its gate but emits no line.

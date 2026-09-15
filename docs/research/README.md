@@ -34,7 +34,7 @@ analysis/
       rc4-md5-legacy.md          Office 97/2000 document-open (MD5 + RC4-40, modes 9700/9710/9720)
       xor-obfuscation.md         legacy binary XOR (16/32-bit verifier + reversible byte transform)
       iso-protection-hash.md     OOXML editing/write/sheet/workbook protection (mode 25300 SHA-512 only)
-      word2007-documentprotection.md   Word 2007 legacy-derived restrict-editing hash
+      crypt-documentprotection.md   Legacy crypt* restrict-editing/write-protection hash
       odf-encryption.md          ODF 1.1 Blowfish / 1.2 AES / 1.3 Argon2id (modes 18600/18400)
       vba-project-password.md    VBA "lock project for viewing" (DPB obfuscation + SHA-1, reuses mode 110)
       pst-crc32.md               Outlook PST advisory password (CRC-32, not real security)

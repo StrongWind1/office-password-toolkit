@@ -13,8 +13,8 @@ $protect$*<hashfunc>*<kdf>*<iters>*<salt>*<hash>
 | # | Field | Type | Values | Source |
 |---|---|---|---|---|
 | 1 | `hashfunc` | string | `md5` `sha1` `sha256` `sha384` `sha512` `ripemd128` `ripemd160` `whirlpool` | `algorithmName` or `cryptAlgorithmSid` |
-| 2 | `kdf` | string | `iso` or `word2007` | Determined by which attribute set is present |
-| 3 | `iters` | decimal | `0`–`10000000` (iso) / `0`–`5000000` (word2007) | `spinCount` / `cryptSpinCount` |
+| 2 | `kdf` | string | `iso` or `crypt` | Determined by which attribute set is present |
+| 3 | `iters` | decimal | `0`–`10000000` (iso) / `0`–`5000000` (crypt) | `spinCount` / `cryptSpinCount` |
 | 4 | `salt` | hex | 1–65536 B (typically 16) | `saltValue` / `salt` (base64 decoded) |
 | 5 | `hash` | hex | digest width per hashfunc (16–64 B) | `hashValue` / `hash` (base64 decoded) |
 
@@ -24,14 +24,14 @@ $protect$*<hashfunc>*<kdf>*<iters>*<salt>*<hash>
 flowchart TD
   LINE["Parse $protect$ line"] --> KDF{"kdf?"}
   KDF -->|"iso"| ISO{"hashfunc?"}
-  KDF -->|"word2007"| W07{"hashfunc?"}
+  KDF -->|"crypt"| W07{"hashfunc?"}
   ISO -->|"sha1"| K1["KERN 37111\nISO SHA-1 loop"]
   ISO -->|"sha256"| K2["KERN 37112\nISO SHA-256 loop"]
   ISO -->|"sha384"| K3["KERN 37113\nISO SHA-384 loop"]
   ISO -->|"sha512"| K4["KERN 37114\nISO SHA-512 loop"]
   ISO -->|"md5"| K5["KERN 37115\nISO MD5 loop"]
-  W07 -->|"sha1"| K6["KERN 37116\nWord2007 SHA-1 loop"]
-  W07 -->|"sha512"| K7["KERN 37117\nWord2007 SHA-512 loop"]
+  W07 -->|"sha1"| K6["KERN 37116\nCrypt SHA-1 loop"]
+  W07 -->|"sha512"| K7["KERN 37117\nCrypt SHA-512 loop"]
 ```
 
 | Internal kernel | KDF | Hash | Replaces |
@@ -41,8 +41,8 @@ flowchart TD
 | 37113 | ISO | SHA-384 | — (gap) |
 | 37114 | ISO | SHA-512 | 25300 (unpinned: any spinCount/salt) |
 | 37115 | ISO | MD5 | — (gap) |
-| 37116 | Word2007 | SHA-1 | — (gap: Word 2007 default) |
-| 37117 | Word2007 | SHA-512 | — (gap) |
+| 37116 | Crypt | SHA-1 | — (gap: Word 2007 default) |
+| 37117 | Crypt | SHA-512 | — (gap) |
 
 ## The two KDF variants
 
@@ -54,7 +54,7 @@ Hn = H(Hn-1 || LE32(n))    for n = 0..spinCount-1
 verify: Hfinal == stored hash
 ```
 
-### `word2007` — three-stage legacy, salt APPENDED
+### `crypt` — three-stage legacy, salt APPENDED
 
 ```
 L  = CreatePasswordVerifier_Method2(ASCII(password))   // 32-bit DWORD
@@ -79,11 +79,11 @@ All 17 carrier elements that produce a GPU-crackable `$protect$` hash line. The 
 | 5 | `<fileSharing>` | `xl/workbook.xml` | Excel | `iso` |
 | 6 | `<protectedRange>` | `xl/worksheets/sheetN.xml` | Excel | `iso` |
 | 7 | `<w:writeProtection>` (ISO dialect) | `word/settings.xml` | Word | `iso` |
-| 8 | `<w:writeProtection>` (legacy dialect) | `word/settings.xml` | Word | `word2007` |
+| 8 | `<w:writeProtection>` (legacy dialect) | `word/settings.xml` | Word | `crypt` |
 | 9 | `<w:documentProtection>` (ISO dialect) | `word/settings.xml` | Word | `iso` |
-| 10 | `<w:documentProtection>` (legacy dialect) | `word/settings.xml` | Word | `word2007` |
+| 10 | `<w:documentProtection>` (legacy dialect) | `word/settings.xml` | Word | `crypt` |
 | 11 | `<p:modifyVerifier>` (ISO dialect) | `ppt/presentation.xml` | PowerPoint | `iso` |
-| 12 | `<p:modifyVerifier>` (legacy dialect) | `ppt/presentation.xml` | PowerPoint | `word2007` |
+| 12 | `<p:modifyVerifier>` (legacy dialect) | `ppt/presentation.xml` | PowerPoint | `crypt` |
 | 13 | `BrtSheetProtectionIso` | `.xlsb` binary record | Excel | `iso` |
 | 14 | `BrtBookProtectionIso` | `.xlsb` binary record | Excel | `iso` |
 | 15 | `BrtCsProtectionIso` | `.xlsb` binary record | Excel | `iso` |
@@ -116,7 +116,7 @@ There is **no on-disk indicator** of which method was used. A correct implementa
 | KDF | Encoding | Max length |
 |---|---|---|
 | `iso` | UTF-16LE | 255 chars |
-| `word2007` | ASCII (MBCS low-byte) | 15 chars |
+| `crypt` | ASCII (MBCS low-byte) | 15 chars |
 
 ## Examples
 
@@ -128,5 +128,5 @@ $protect$*sha512*iso*100000*f3be8c2e8293ab8dbefc32e9e35e6265*4cd0efa6f632be5494.
 $protect$*sha1*iso*100000*f3be8c2e8293ab8dbefc32e9e35e6265*43dd022c47da3d67c3...
 
 # Word 2007 legacy, SHA-1, three-stage KDF (NEW — no mode today)
-$protect$*sha1*word2007*50000*deadbeefcafebabe1234567890abcdef*9a0b1c2d3e4f5a6b7c...
+$protect$*sha1*crypt*50000*deadbeefcafebabe1234567890abcdef*9a0b1c2d3e4f5a6b7c...
 ```

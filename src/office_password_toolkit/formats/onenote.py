@@ -19,7 +19,7 @@ schemes, decided per-file by the leading version words -- it is NOT always agile
   Parsed by :mod:`~office_password_toolkit.crypto.ecma376`; emits
   ``$office$*2013`` (hashcat 9600, SHA-512/AES-256) or ``$office$*2010`` (9500,
   SHA-1/AES-128). A non-hashcat agile tuple falls back to the generalized
-  ``$office-agile$`` line.
+  ``$office-open$`` line.
 * **Standard** (``vMinor == 2`` with ``fAES`` set): ECMA-376 standard, AES-ECB +
   SHA-1 x50000. Parsed by ``ecma376``; emits ``$office$*2007`` (hashcat 9400).
 * **RC4 CryptoAPI** (``vMinor == 2`` with ``fCryptoAPI`` set and ``fAES`` clear,
@@ -137,7 +137,7 @@ def _agile_hash(info: ecma376.EncryptionInfo) -> _OneNoteHash:
 
     SHA-512/AES-256 is the OneNote 2013+ default (hashcat 9600); SHA-1/AES-128 is
     the 2010 tuple (9500). Any other agile tuple has no hashcat mode, so it falls
-    back to the generalized ``$office-agile$`` line, which a conforming cracker can
+    back to the generalized ``$office-open$`` line, which a conforming cracker can
     still ingest.
     """
     algo = info.hash_algorithm.upper().replace("-", "")

@@ -110,7 +110,7 @@ class RecoveryClass(StrEnum):
 class HashScheme(StrEnum):
     """The hash-line format a gate extracts to (hashcat/John naming).
 
-    Each member maps to a ``$prefix$`` signature and, when one exists, a hashcat ``-m``
+    Each member maps to a hash-line prefix and, when one exists, a hashcat ``-m``
     mode. Members below the ``---`` comment have no shipped hashcat mode -- they are
     extractable verifiers the toolkit surfaces beyond what office2john covers.
     """
@@ -124,7 +124,7 @@ class HashScheme(StrEnum):
     ODF = "odf"  # $odf$ -> hashcat 18400/18600
     VBA_SHA1 = "vba-sha1"  # sha1($pass.$salt) -> hashcat 110
     # --- no hashcat mode (custom format) ---
-    MSISAM = "msisam"  # $msisam$ (MD5/SHA-1 + RC4, Money 2002+) -- no hashcat mode
+    MSISAM = "msisam"  # $office-msisam$ (MD5/SHA-1 + RC4, Money 2002+) -- no hashcat mode
 
 
 # Friendly, human-facing gate names (the "simple name" column of
@@ -175,8 +175,8 @@ class ExtractedHash:
 
     Two line representations coexist: ``value`` is the hashcat-compatible line
     (``$office$*2013*...`` / ``$oldoffice$...`` / ``$odf$*0*0*...``) emitted by
-    default; ``opt_value`` is the self-describing 4-family line (``$office$*sha512*
-    aes256*cbc*...`` / ``$protect$*...`` / ``$odf$*sha256*pbkdf2*...`` / ``$vba$*...``)
+    default; ``opt_value`` is the self-describing unified line (``$office-open$*sha512*
+    aes256*cbc*...`` / ``$office-protect$*...`` / ``$odf$*sha256*pbkdf2*...`` / ``$office-vba$*...``)
     emitted by ``--format opt``. The ``opt_value`` is ``None`` for verifiers that are
     not slow hashes (XOR, PST CRC) — those are handled by ``opt decode`` /
     ``opt collide`` instead.

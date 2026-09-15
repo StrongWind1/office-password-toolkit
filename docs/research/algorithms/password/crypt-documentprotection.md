@@ -94,7 +94,7 @@ Fields to extract from `<w:documentProtection>` in `word/settings.xml`:
 **Python function signature this maps to:**
 
 ```python
-def verify_word2007_docprotect(
+def crypt_protection_verify(
     password: str,  # ASCII, 1-15 characters
     salt: bytes,  # base64-decoded from w:salt
     spin_count: int,  # from w:cryptSpinCount

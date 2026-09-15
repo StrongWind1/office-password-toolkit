@@ -1773,7 +1773,7 @@ class OleHandler(FormatHandler):
         return Gate(gate=GateType.MODIFY, recovery=RecoveryClass.READ, where="Table stream SttbfAssoc[0x11] (cleartext UTF-16LE); FibBase.fWriteReservation", note=note)
 
     def _legacy_hashes(self, ole: olefile.OleFileIO, names: set[str]) -> list[ExtractedHash]:
-        """Emit the open ``$oldoffice$`` line, any ``$officexor$`` verifier lines, and VBA 110."""
+        """Emit the open ``$oldoffice$`` hash line, XOR verifier lines, and VBA 110."""
         app = _classify_legacy(names)
         hashes: list[ExtractedHash] = []
         open_info = self._legacy_open_info(ole, app)

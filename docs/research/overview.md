@@ -192,7 +192,7 @@ flowchart TD
 | RC4 MD5 Legacy | `[MS-OFFCRYPTO]` §2.3.6 | [algorithms/password/rc4-md5-legacy.md](algorithms/password/rc4-md5-legacy.md) |
 | XOR Obfuscation | `[MS-OFFCRYPTO]` §2.3.7 | [algorithms/password/xor-obfuscation.md](algorithms/password/xor-obfuscation.md) |
 | ISO Protection Hash | `[MS-OFFCRYPTO]` §2.4.2.4 | [algorithms/password/iso-protection-hash.md](algorithms/password/iso-protection-hash.md) |
-| Word 2007 documentProtection | `[MS-OE376]` §2.1.410 | [algorithms/password/word2007-documentprotection.md](algorithms/password/word2007-documentprotection.md) |
+| Word 2007 documentProtection | `[MS-OE376]` §2.1.410 | [algorithms/password/crypt-documentprotection.md](algorithms/password/crypt-documentprotection.md) |
 | ODF Encryption | OASIS ODF Part 3 | [algorithms/password/odf-encryption.md](algorithms/password/odf-encryption.md) |
 | VBA Project Password | `[MS-OVBA]` §2.4.3–4 | [algorithms/password/vba-project-password.md](algorithms/password/vba-project-password.md) |
 | PST CRC-32 | `[MS-PST]` §5.3 | [algorithms/password/pst-crc32.md](algorithms/password/pst-crc32.md) |

@@ -44,8 +44,8 @@ flowchart TD
     P3["37113: ISO SHA-384"]
     P4["37114: ISO SHA-512"]
     P5["37115: ISO MD5"]
-    P6["37116: Word2007 SHA-1"]
-    P7["37117: Word2007 SHA-256"]
+    P6["37116: Crypt SHA-1"]
+    P7["37117: Crypt SHA-256"]
   end
 
   subgraph M37200["Mode 37200 — ODF Encryption (PBKDF2)"]

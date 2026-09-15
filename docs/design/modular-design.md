@@ -429,7 +429,7 @@ The existing `unified_*_line()` emitters in each crypto module already produce t
 | `algorithms/password/rc4-md5-legacy.md` | `rc4legacy.rc4_md5_verify()` | `rc4legacy.rc4_md5_hash_line()` / `rc4legacy.unified_rc4_office_line()` |
 | `algorithms/password/xor-obfuscation.md` | `xor.password_verifier_method1()` | — (decode, not hash) |
 | `algorithms/password/iso-protection-hash.md` | `protection.verify()` | `protection.hash_line_25300()` / `protection.unified_protect_line()` |
-| `algorithms/password/word2007-documentprotection.md` | `protection.word2007_protection_verify()` | `protection.unified_protect_line_from_sid()` |
+| `algorithms/password/crypt-documentprotection.md` | `protection.crypt_protection_verify()` | `protection.unified_protect_line_from_sid()` |
 | `algorithms/password/odf-encryption.md` | `odf.verify()` | `odf.odf_hash_line()` / `odf.unified_odf_line()` |
 | `algorithms/password/vba-project-password.md` | `vba.password_hash()` | `vba.extract_vba_hash()` / `vba.unified_vba_line()` |
 | `algorithms/password/pst-crc32.md` | `pst.password_crc()` | — (collide, not hash) |

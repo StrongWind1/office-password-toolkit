@@ -76,11 +76,11 @@ Every file in the first-party corpus (4561 files, 0 errors) bucketed against the
 | 71007 | office-protect/ripemd128/iso | **GAP** |
 | 71008 | office-protect/ripemd160/iso | **GAP** |
 | 71009 | office-protect/whirlpool/iso | **GAP** |
-| 71010 | office-protect/sha1/word2007 | **GAP** |
-| 71011 | office-protect/sha256/word2007 | **GAP** |
-| 71012 | office-protect/sha384/word2007 | **GAP** |
-| 71013 | office-protect/sha512/word2007 | **GAP** |
-| 71014 | office-protect/md5/word2007 | **GAP** |
+| 71010 | office-protect/sha1/crypt | **GAP** |
+| 71011 | office-protect/sha256/crypt | **GAP** |
+| 71012 | office-protect/sha384/crypt | **GAP** |
+| 71013 | office-protect/sha512/crypt | **GAP** |
+| 71014 | office-protect/md5/crypt | **GAP** |
 
 ### OpenDocument (720xx), VBA (730xx), keyspace (790xx)
 
@@ -131,7 +131,7 @@ Every file in the first-party corpus (4561 files, 0 errors) bucketed against the
 | OneNote standard (`.one`) | sha1/aes128/ecb → 9400 | 0 | covered (synthetic) | [MS-ONESTORE] §2.5.19 |
 | OneNote RC4 CryptoAPI (`.one`) | sha1/rc4 → 9800 | 0 | covered (synthetic) | [MS-ONESTORE] §2.5.19 |
 
-### Editing/permission protection (`$protect$` / `$doc-protect$`)
+### Editing/permission protection (`$office-protect$`)
 
 | Dialect / hashfunc | files | status | spec |
 |---|---|---|---|
@@ -145,11 +145,11 @@ Every file in the first-party corpus (4561 files, 0 errors) bucketed against the
 | ISO / ripemd128 | 0 | **GAP** (0) | [MS-OFFCRYPTO] §2.4.2.4 |
 | ISO / ripemd160 | 0 | **GAP** (0) | [MS-OFFCRYPTO] §2.4.2.4 |
 | ISO / whirlpool | 0 | **GAP** (0) | [MS-OFFCRYPTO] §2.4.2.4 |
-| word2007 / sha1 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
-| word2007 / sha256 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
-| word2007 / sha384 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
-| word2007 / sha512 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
-| word2007 / md5 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
+| crypt / sha1 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
+| crypt / sha256 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
+| crypt / sha384 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
+| crypt / sha512 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
+| crypt / md5 | 0 | **GAP** (0) | [MS-OE376] §2.1.410 |
 
 ### Legacy fast verifiers (COLLIDE / DECODE / READ)
 
@@ -167,7 +167,7 @@ Every file in the first-party corpus (4561 files, 0 errors) bucketed against the
 
 ### VBA, defaults, no-secret
 
-- **VBA project lock** (`$vba$` sha1 → 110): covered (2)
+- **VBA project lock** (`$office-vba$` sha1 → 110): covered (2)
 - **Default passwords** ([MS-OFFCRYPTO] §2.4.2.3):
     - `VelvetSweatshop`: covered (1)
     - `/01Hannes Ruescher/01`: covered (1)
@@ -238,7 +238,7 @@ Every file in the first-party corpus (4561 files, 0 errors) bucketed against the
 **B. Real but no shipping producer (out of scope for real-producer-only corpus):**
 - ECMA-376 **standard AES-192/256** — Office always writes AES-128 in standard mode (verified on wire).
 - **Exotic ISO protection hashes** (sha256/384/md5/md4/md2/ripemd/whirlpool) — Office writes only SHA-1 + SHA-512.
-- **Exotic word2007 hashes** (sha256/384/512/md5) — Office writes SHA-1.
+- **Exotic crypt hashes** (sha256/384/512/md5) — Office writes SHA-1.
 - **Exotic agile open cells** — full matrix in Part 1 (ripemd128/ripemd160/whirlpool x all ciphers; md4/md2 x non-AES; sha1/rc2).
 
 **C. Unproducible (platform-impossible):**

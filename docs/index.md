@@ -14,7 +14,7 @@
 - **3 CLI commands** — `opt info` (hash to stdout, status/scheme to stderr), `opt unlock` (try everything), and `opt advanced` (8 expert subcommands for surgical control)
 - **Recovery ladder** — each gate is assigned the cheapest viable action: `DEFAULT` > `READ` > `DECODE` > `BYPASS` > `STRIP` > `COLLIDE` > `CRACK`, applied in order so free wins come first
 - **62 gates** — every password, protection, and permission mechanism across 11 products
-- **Self-describing unified format** — `--format opt` emits four hash families (`$office$`, `$protect$`, `$odf$`, `$vba$`) encoding algorithm, key size, and all parameters
+- **Self-describing unified format** — `--format unified` emits five hash families (`$office-open$`, `$office-protect$`, `$office-vba$`, `$office-msisam$`, `$odf$`) encoding algorithm, key size, and all parameters
 - **Hashcat integration** — `--format hashcat` (the default) emits lines ready for modes 9400, 9500, 9600, 9700, 9800, 25300, 18400, 18600, and 110
 - **Built-in decryption** — ECMA-376 standard/agile, RC4+MD5, RC4-CryptoAPI, XOR obfuscation, ODF 1.1/1.2/1.3
 - **Default passwords tried automatically** — `VelvetSweatshop` and `/01Hannes Ruescher/01` before any user-supplied password
