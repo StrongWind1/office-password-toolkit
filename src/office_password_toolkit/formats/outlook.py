@@ -549,7 +549,7 @@ class OutlookHandler(FormatHandler):
         return []
 
     @override
-    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> None:
+    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> int:
         r"""Write a copy of ``path`` to ``out`` with the open password stripped.
 
         Locates ``PidTagPstPassword`` in the message-store property context, zeros
@@ -583,6 +583,7 @@ class OutlookHandler(FormatHandler):
         self._zero_password(buffer, location)
         logger.debug("bypass: wrote %d bytes to %s", len(buffer), out)
         out.write_bytes(buffer)
+        return 1
 
     def decode_body(self, path: Path, out: Path) -> None:
         """Write a plaintext-cipher copy of ``path`` with the keyless body decoded.

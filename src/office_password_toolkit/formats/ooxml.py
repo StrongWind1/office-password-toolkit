@@ -886,7 +886,7 @@ class OoxmlHandler(FormatHandler):
         return hashes
 
     @override
-    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> None:
+    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> int:
         """Write a NEW package to ``out`` with every non-encrypting gate stripped.
 
         The input is opened read-only and never modified. Each member is copied
@@ -918,6 +918,7 @@ class OoxmlHandler(FormatHandler):
                     rewritten += 1
                 target.writestr(info, stripped)
         logger.debug("bypass: %d members rewritten to %s", rewritten, out)
+        return rewritten
 
     @override
     def decrypt(self, path: Path, out: Path, password: str) -> None:

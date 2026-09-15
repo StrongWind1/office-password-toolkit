@@ -421,7 +421,7 @@ class OdfHandler(FormatHandler):
         return hashes
 
     @override
-    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> None:
+    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> int:
         """Write a NEW package with sheet/section protection stripped (free BYPASS).
 
         Rewrites ``content.xml`` to clear ``*:protected`` and delete the
@@ -447,6 +447,7 @@ class OdfHandler(FormatHandler):
 
         logger.debug("bypass: repackaging to %s (%d replacements)", out, len(replacements))
         _repackage(path, out, _RepackagePlan(replacements=replacements))
+        return len(replacements)
 
     @override
     def decrypt(self, path: Path, out: Path, password: str) -> None:

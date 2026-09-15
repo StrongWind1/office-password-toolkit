@@ -15,8 +15,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def bypass_file(path: Path, out: Path, *, remove_signatures: bool = False) -> None:
+def bypass_file(path: Path, out: Path, *, remove_signatures: bool = False) -> int:
     """Write ``path`` to ``out`` with strip/collide-able protection removed.
+
+    Returns the number of members/streams/elements actually rewritten. A return
+    of ``0`` means the file was copied faithfully with no protection changes.
 
     When ``remove_signatures`` is set, digital signatures are deleted too -- an
     opt-in action that invalidates the signature and cannot be undone (signatures
@@ -35,4 +38,4 @@ def bypass_file(path: Path, out: Path, *, remove_signatures: bool = False) -> No
         msg = f"unrecognised container for {path!s} ({result.container.value})"
         raise LookupError(msg)
     logger.debug("bypass_file: dispatching to %s", type(handler).__name__)
-    handler.bypass(path, out, remove_signatures=remove_signatures)
+    return handler.bypass(path, out, remove_signatures=remove_signatures)

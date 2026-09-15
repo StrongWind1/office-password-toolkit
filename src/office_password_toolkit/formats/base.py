@@ -60,8 +60,11 @@ class FormatHandler(ABC):
         operation = "hash extraction"
         raise HandlerNotImplementedError(operation, self.container.value)
 
-    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> None:
+    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> int:
         """Write a copy of ``path`` to ``out`` with removable protection stripped.
+
+        Returns the number of members/streams/elements actually rewritten. A return
+        of ``0`` means the file was copied faithfully with no protection changes.
 
         When ``remove_signatures`` is set, any digital signature is deleted too --
         an opt-in, destructive action that drops the integrity/authenticity claim

@@ -1390,7 +1390,7 @@ class OleHandler(FormatHandler):
             return []
 
     @override
-    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> None:
+    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> int:
         """Copy ``path`` to ``out`` with removable (non-encrypting) protection cleared.
 
         The edits are computed from the input BEFORE ``out`` is written, so an honest
@@ -1408,16 +1408,17 @@ class OleHandler(FormatHandler):
                 app = _classify_legacy(names)
         except _PARSE_ERRORS:
             shutil.copyfile(str(path), str(out))
-            return  # unreadable container -- a faithful copy is the best we can do
+            return 0  # unreadable container -- a faithful copy is the best we can do
         edits = self._bypass_edits(path, app, remove_signatures=remove_signatures)  # may raise ValueError on an honest failure
         logger.debug("bypass: app=%s edits=%d", app or "unknown", len(edits))
         shutil.copyfile(str(path), str(out))
         if not edits:
-            return  # nothing removable -- a faithful copy is still the correct output
+            return 0  # nothing removable -- a faithful copy is still the correct output
         with olefile.OleFileIO(str(out), write_mode=True) as out_ole:
             for stream_path, data in edits.items():
                 logger.debug("bypass: writing %s (%d bytes)", stream_path, len(data))
                 out_ole.write_stream(stream_path.split("/"), data)
+        return len(edits)
 
     @override
     def decrypt(self, path: Path, out: Path, password: str) -> None:

@@ -284,7 +284,7 @@ class OneNoteHandler(FormatHandler):
         ]
 
     @override
-    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> None:
+    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> int:
         """Reject bypass -- OneNote carries no strippable, keyless protection.
 
         The only gate is real document-open encryption, which cannot be flipped

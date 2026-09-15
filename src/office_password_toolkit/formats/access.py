@@ -877,7 +877,7 @@ class AccessHandler(FormatHandler):
         return hashes
 
     @override
-    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> None:
+    def bypass(self, path: Path, out: Path, *, remove_signatures: bool = False) -> int:
         """Copy Jet ``.mdb`` through (body is already cleartext); raise for ACE.
 
         Jet databases have no real document-open encryption -- the body is always
@@ -889,7 +889,7 @@ class AccessHandler(FormatHandler):
         header = read_header(path)
         if header is not None and header.engine in (AccessEngine.JET3, AccessEngine.JET4):
             shutil.copyfile(path, out)
-            return
+            return 0
         operation = "bypass is not supported for ACE .accdb (real encryption)"
         raise HandlerNotImplementedError(operation, self.container.value)
 
