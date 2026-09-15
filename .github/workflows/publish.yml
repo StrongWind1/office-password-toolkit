@@ -1,10 +1,8 @@
 name: "CI: Build and Publish to PyPI"
 
-# DORMANT: this repository is not yet wired for PyPI trusted publishing.
-# To enable automatic publishing when a GitHub Release is published, restore:
-#   release:
-#     types: [published]
 "on":
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
