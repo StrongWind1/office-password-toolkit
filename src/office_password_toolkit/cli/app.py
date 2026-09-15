@@ -439,14 +439,14 @@ def _get_gates(path: Path) -> list[Gate]:
     used by the ``info`` and ``unlock`` commands where a gate-enumeration failure
     should degrade gracefully, not crash the batch.
     """
-    result = detect_file(path)
-    handler = handler_for(result.container)
-    if handler is None:
-        logger.debug("no handler for container %s", result.container.value)
-        return []
     try:
+        result = detect_file(path)
+        handler = handler_for(result.container)
+        if handler is None:
+            logger.debug("no handler for container %s", result.container.value)
+            return []
         return handler.gates(path)
-    except (NotImplementedError, LookupError, ValueError) as exc:
+    except Exception as exc:
         logger.debug("gate enumeration failed for %s: %s", path, exc)
         return []
 
@@ -459,7 +459,7 @@ def _extract_hashes_safe(path: Path) -> list[ExtractedHash]:
     """
     try:
         return extract_hashes(path)
-    except (NotImplementedError, LookupError, ValueError) as exc:
+    except Exception as exc:
         logger.debug("hash extraction failed for %s: %s", path, exc)
         return []
 
@@ -613,9 +613,13 @@ def _info_one_file(args: tuple[Path, bool, int]) -> tuple[str, str | None]:
     a closure) so ``ProcessPoolExecutor`` can pickle it with ``forkserver``.
     """
     path, use_unified, pad_to = args
-    gates = _get_gates(path)
-    hash_line = _pick_hash_line(path, use_unified=use_unified)
-    status = format_file_line(path.name, gates, pad_to=pad_to)
+    try:
+        gates = _get_gates(path)
+        hash_line = _pick_hash_line(path, use_unified=use_unified)
+        status = format_file_line(path.name, gates, pad_to=pad_to)
+    except Exception:
+        status = format_file_line(path.name, [], pad_to=pad_to)
+        hash_line = None
     return status, hash_line
 
 
@@ -867,10 +871,14 @@ def _unlock_bypass(
     logger.debug("unlock bypass: source=%s remove_signatures=%s", source, remove_signatures)
     try:
         _guard_output(source, bypass_target, force=force)
-        bypass_file(source, bypass_target, remove_signatures=remove_signatures)
+        changed = bypass_file(source, bypass_target, remove_signatures=remove_signatures)
     except (NotImplementedError, LookupError, SystemExit) as exc:
         _err.print(f"[yellow]bypass unavailable: {exc}[/]")
         logger.debug("bypass failed for %s: %s", source, exc)
+        return None
+    if not changed:
+        logger.debug("unlock bypass: handler rewrote 0 members, removing no-op output")
+        bypass_target.unlink(missing_ok=True)
         return None
     _err.print(f"[green]Bypassed ->[/] {bypass_target}")
     return bypass_target
@@ -951,8 +959,13 @@ def unlock(
         # Step 3: report collidable (tiny) verifiers.
         _unlock_collide(source)
 
-        # Step 4: strip non-encrypting protection.
-        bypassed = _unlock_bypass(source, out, remove_signatures=remove_signatures, force=force)
+        # Step 4: strip non-encrypting protection (skip when nothing to strip).
+        current_gates = _get_gates(source)
+        if current_gates:
+            bypassed = _unlock_bypass(source, out, remove_signatures=remove_signatures, force=force)
+        else:
+            logger.debug("unlock bypass: no gates on %s, skipping", source)
+            bypassed = None
         if bypassed is not None:
             produced = bypassed
 
@@ -1215,10 +1228,14 @@ def adv_bypass(
     target = out if out is not None else _derive_output(path, "bypassed")
     _guard_output(path, target, force=force)
     try:
-        bypass_file(path, target, remove_signatures=remove_signatures)
+        changed = bypass_file(path, target, remove_signatures=remove_signatures)
     except (NotImplementedError, LookupError, ValueError) as exc:
         _err.print(f"[yellow]{exc}[/]")
         raise typer.Exit(code=EXIT_UNSUPPORTED) from exc
+    if not changed:
+        target.unlink(missing_ok=True)
+        _err.print("[yellow]No protection to strip.[/]")
+        raise typer.Exit(code=EXIT_OK)
     _err.print(f"[green]Bypassed ->[/] {target}")
     typer.echo(str(target))
 
