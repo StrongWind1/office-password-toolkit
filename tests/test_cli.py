@@ -32,9 +32,9 @@ def test_help():
 def test_info_command(tmp_path: Path):
     f = tmp_path / "legacy.doc"
     f.write_bytes(MAGIC_OLE_CFB + b"\x00" * 32)
-    # The new info command exits 1 when no crackable hash is emitted (EXIT_ERROR).
+    # info exits 0 on successful detection regardless of hash presence.
     result = runner.invoke(app, ["info", str(f)])
-    assert result.exit_code == 1
+    assert result.exit_code == 0
 
 
 def test_info_no_hash_flag(tmp_path: Path):

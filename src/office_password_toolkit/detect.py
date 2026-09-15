@@ -125,6 +125,19 @@ _GENERIC_EXT_TO_PRODUCT: Final[dict[str, Product]] = {
 }
 
 
+def classify_container(path: Path) -> ContainerKind:
+    """Classify a file's container format from its magic bytes (cheap, no product/encryption check).
+
+    Returns :attr:`ContainerKind.UNKNOWN` for non-Office files. Used by the CLI to
+    filter directory scans without the overhead of full product detection.
+    """
+    try:
+        header = _read_header(path)
+    except OSError:
+        return ContainerKind.UNKNOWN
+    return _classify(header)
+
+
 def detect(path: Path) -> DetectResult:
     """Triage a single file into a :class:`DetectResult` (container + encrypted + product).
 

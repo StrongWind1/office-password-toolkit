@@ -29,29 +29,26 @@ _SIGNED_XLSX = "tests/corpus/protected/hello-world-signed.xlsx"
 
 
 def test_info_single_file():
-    """info on a single encrypted file: exit 0, stdout has hash, stderr has status:scheme."""
+    """info on a single encrypted file: exit 0, stdout has hash, stderr has human-readable detail."""
     result = runner.invoke(app, ["info", _ENCRYPTED_DOCX])
     assert result.exit_code == 0
-    # stdout carries the hash line.
     assert "$office$" in result.stdout
-    # stderr carries the status:scheme one-liner.
-    assert "encrypted:" in result.stderr
-    assert "agile-sha512" in result.stderr
+    assert "Word document (encrypted)" in result.stderr
+    assert "Document-open password" in result.stderr
 
 
 def test_info_multiple_files():
-    """info with 2 files: 2 hash/blank lines on stdout, 2 info lines on stderr."""
+    """info with 2 files: hash lines on stdout, table + stats on stderr."""
     result = runner.invoke(app, ["info", _ENCRYPTED_DOCX, _PROTECTED_XLSX])
     assert result.exit_code == 0
 
     stdout_lines = result.stdout.strip().splitlines()
     assert len(stdout_lines) == 2
 
-    stderr_lines = result.stderr.strip().splitlines()
-    assert len(stderr_lines) == 2
-    # First file is encrypted, second is protected (removable).
-    assert "encrypted:" in stderr_lines[0]
-    assert "removable:" in stderr_lines[1]
+    # Multi-file stderr: compact table lines + stats block.
+    assert "encrypted" in result.stderr
+    assert "protected" in result.stderr
+    assert "files scanned" in result.stderr
 
 
 def test_info_directory(tmp_path: Path):
@@ -101,11 +98,11 @@ def test_info_quiet():
 
 
 def test_info_no_hash():
-    """info --no-hash: stdout is empty (status lines only on stderr)."""
+    """info --no-hash: stdout is empty (human-readable detail on stderr)."""
     result = runner.invoke(app, ["info", "--no-hash", _ENCRYPTED_DOCX])
     assert result.exit_code == 0
     assert result.stdout == ""
-    assert "encrypted:" in result.stderr
+    assert "encrypted" in result.stderr
 
 
 def test_info_format_hashcat():
@@ -165,7 +162,7 @@ def test_advanced_strip(tmp_path: Path):
     assert result.exit_code == 0
     # stdout carries the produced output path.
     produced = result.stdout.strip()
-    assert "stripped" in produced
+    assert "unlocked" in produced
 
 
 def test_advanced_verify():
@@ -195,18 +192,16 @@ def test_debug_mode():
 
 
 def test_status_scheme_encrypted():
-    """Encrypted file shows 'encrypted:' prefix in stderr status line."""
+    """Encrypted file shows 'encrypted' in stderr detail."""
     result = runner.invoke(app, ["info", _ENCRYPTED_DOCX])
     assert result.exit_code == 0
-    # The stderr one-liner must start with the filename and contain encrypted:<scheme>.
-    assert "encrypted:" in result.stderr
+    assert "(encrypted)" in result.stderr
 
 
 def test_status_scheme_open(tmp_path: Path):
-    """Unprotected file shows 'open' in stderr status line."""
-    # Create a minimal OLE file with no protection gates.
+    """Unprotected file shows 'No protection.' in stderr detail."""
     f = tmp_path / "bare.doc"
     f.write_bytes(MAGIC_OLE_CFB + b"\x00" * 32)
     result = runner.invoke(app, ["info", "--no-hash", str(f)])
     assert result.exit_code == 0
-    assert "open" in result.stderr
+    assert "No protection." in result.stderr

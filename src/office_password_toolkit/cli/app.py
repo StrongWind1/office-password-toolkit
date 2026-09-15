@@ -26,12 +26,15 @@ import json
 import logging
 import os
 import re
+import shutil
 import sys
 import tempfile
+import time
 import zipfile
 from concurrent.futures import ProcessPoolExecutor
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Final
 
 import olefile
 import typer
@@ -53,6 +56,7 @@ from office_password_toolkit.crypto import pst as pst_crypto
 from office_password_toolkit.crypto.uls import parse_mdw
 from office_password_toolkit.decrypt import decrypt_file
 from office_password_toolkit.defaults import default_passwords
+from office_password_toolkit.detect import classify_container
 from office_password_toolkit.detect import detect as detect_file
 from office_password_toolkit.extract import extract_hashes
 from office_password_toolkit.formats import handler_for
@@ -60,6 +64,8 @@ from office_password_toolkit.formats.access import AccessEngine, decode_jet_pass
 from office_password_toolkit.models import (
     ContainerKind,
     GateType,
+    HashScheme,
+    Product,
     RecoveryClass,
     Status,
     gate_scheme_tag,
@@ -229,30 +235,370 @@ _COUNTABLE_GATES: frozenset[GateType] = frozenset(
 )
 
 
+# --- Human-readable output (info/unlock commands) ----------------------------
+
+_PRODUCT_DESCRIPTIONS: Final[dict[Product, str]] = {
+    Product.WORD: "Word document",
+    Product.EXCEL: "Excel workbook",
+    Product.POWERPOINT: "PowerPoint presentation",
+    Product.ONENOTE: "OneNote notebook",
+    Product.OUTLOOK: "Outlook data file",
+    Product.ACCESS: "Access database",
+    Product.VISIO: "Visio drawing",
+    Product.PROJECT: "Project file",
+    Product.PUBLISHER: "Publisher document",
+    Product.INFOPATH: "InfoPath form",
+    Product.OPENDOCUMENT: "OpenDocument file",
+    Product.UNKNOWN: "Office file",
+}
+
+_SCHEME_HUMAN_NAMES: Final[dict[HashScheme, str]] = {
+    HashScheme.OFFICE_2007: "AES-128/SHA-1",
+    HashScheme.OFFICE_2010: "AES-128/SHA-1",
+    HashScheme.OFFICE_2013: "AES-256/SHA-512",
+    HashScheme.OLDOFFICE_RC4_MD5: "RC4/MD5",
+    HashScheme.OLDOFFICE_RC4_SHA1: "RC4/SHA-1",
+    HashScheme.OFFICE_SHEETPROT: "SHA-512",
+    HashScheme.ODF: "ODF",
+    HashScheme.VBA_SHA1: "SHA-1",
+    HashScheme.MSISAM: "MSISAM",
+}
+
+_STRIPPABLE_RECOVERIES: Final[frozenset[RecoveryClass]] = frozenset(
+    {
+        RecoveryClass.DEFAULT,
+        RecoveryClass.READ,
+        RecoveryClass.DECODE,
+        RecoveryClass.BYPASS,
+        RecoveryClass.STRIP,
+        RecoveryClass.COLLIDE,
+    }
+)
+
+_GATE_HUMAN_DESCRIPTIONS: Final[dict[GateType, tuple[str, str]]] = {
+    GateType.PROTECT_SHEET: ("sheet protected", "sheets protected"),
+    GateType.ALLOW_EDIT_RANGES: ("range password", "range passwords"),
+    GateType.PROTECT_WORKBOOK: ("Workbook structure locked", "Workbook structure locked"),
+    GateType.RESTRICT_EDIT: ("Editing restriction", "Editing restrictions"),
+    GateType.SHARED_REVISIONS: ("Shared-revisions lock", "Shared-revisions lock"),
+    GateType.SECTION: ("Section protection", "Section protection"),
+    GateType.VBA_PROJECT: ("VBA project lock", "VBA project lock"),
+    GateType.MODIFY: ("Modify password", "Modify password"),
+    GateType.SIGNATURE: ("Digital signature", "Digital signatures"),
+    GateType.IRM: ("Rights management (IRM)", "Rights management (IRM)"),
+    GateType.MAIL_BODY: ("Mail body cipher", "Mail body cipher"),
+}
+
+
+@dataclass(frozen=True)
+class _FileResult:
+    """Structured result from processing one file."""
+
+    path: Path
+    product: Product
+    container: ContainerKind
+    encrypted: bool
+    gates: list[Gate]
+    hash_line: str | None
+    error: str | None = None
+
+
+@dataclass
+class _InfoStats:
+    """Accumulator for info command batch statistics."""
+
+    total: int = 0
+    elapsed: float = 0.0
+    by_product: dict[str, int] = field(default_factory=dict)
+    encrypted: int = 0
+    protected: int = 0
+    no_protection: int = 0
+    not_recoverable: int = 0
+    hashes_extracted: int = 0
+    hashcat_modes: dict[int, int] = field(default_factory=dict)
+    errors: int = 0
+
+    def record(self, result: _FileResult) -> None:
+        """Record one file's result into the accumulator."""
+        self.total += 1
+        prod = _PRODUCT_DESCRIPTIONS.get(result.product, result.product.value)
+        self.by_product[prod] = self.by_product.get(prod, 0) + 1
+        if result.error:
+            self.errors += 1
+            return
+        status = _file_status_word(result.gates)
+        if status == "encrypted":
+            self.encrypted += 1
+        elif status == "protected":
+            self.protected += 1
+        elif status == "not recoverable":
+            self.not_recoverable += 1
+        else:
+            self.no_protection += 1
+        if result.hash_line:
+            self.hashes_extracted += 1
+            for gate in result.gates:
+                if gate.hashcat_mode is not None:
+                    self.hashcat_modes[gate.hashcat_mode] = self.hashcat_modes.get(gate.hashcat_mode, 0) + 1
+
+    def format(self) -> str:
+        """Format the stats block as an aligned table for stderr."""
+        parts: list[str] = []
+        time_str = f"{self.elapsed:.1f}s" if self.elapsed < 60 else f"{int(self.elapsed // 60)}m {int(self.elapsed % 60)}s"  # noqa: PLR2004
+        parts.append(f"{self.total} files scanned in {time_str}")
+        products = sorted(self.by_product.items(), key=lambda kv: -kv[1])
+        if products:
+            pad = max(len(name) for name, _ in products)
+            for name, count in products:
+                parts.append(f"  {name:<{pad}}  {count:>5}")
+        parts.append("")
+        rows: list[tuple[str, int]] = []
+        if self.encrypted:
+            rows.append(("encrypted — password required", self.encrypted))
+        if self.protected:
+            rows.append(("protected — removable with opt unlock", self.protected))
+        if self.not_recoverable:
+            rows.append(("not recoverable", self.not_recoverable))
+        if self.no_protection:
+            rows.append(("no protection", self.no_protection))
+        if rows:
+            pad = max(len(label) for label, _ in rows)
+            for label, count in rows:
+                parts.append(f"  {label:<{pad}}  {count:>5}")
+        if self.hashes_extracted:
+            parts.append("")
+            parts.append(f"  {self.hashes_extracted} hash{'es' if self.hashes_extracted != 1 else ''} extracted")
+            for mode, count in sorted(self.hashcat_modes.items()):
+                parts.append(f"    hashcat -m {mode:<5}  {count:>5}")
+        if self.errors:
+            parts.append(f"  {self.errors} error{'s' if self.errors != 1 else ''}")
+        return "\n".join(parts)
+
+
+@dataclass
+class _UnlockStats:
+    """Accumulator for unlock command batch statistics."""
+
+    total: int = 0
+    elapsed: float = 0.0
+    by_product: dict[str, int] = field(default_factory=dict)
+    decrypted: int = 0
+    decrypted_default: int = 0
+    protection_stripped: int = 0
+    skipped_no_protection: int = 0
+    skipped_not_recoverable: int = 0
+    still_encrypted: int = 0
+    files_written: int = 0
+    hashcat_modes: dict[int, int] = field(default_factory=dict)
+    errors: int = 0
+
+    def record_product(self, product: Product) -> None:
+        """Record the product type for one file."""
+        self.total += 1
+        prod = _PRODUCT_DESCRIPTIONS.get(product, product.value)
+        self.by_product[prod] = self.by_product.get(prod, 0) + 1
+
+    def format(self) -> str:
+        """Format the stats block for stderr."""
+        parts: list[str] = []
+        time_str = f"{self.elapsed:.1f}s" if self.elapsed < 60 else f"{int(self.elapsed // 60)}m {int(self.elapsed % 60)}s"  # noqa: PLR2004
+        parts.append(f"{self.total} files processed in {time_str}")
+        products = sorted(self.by_product.items(), key=lambda kv: -kv[1])
+        if products:
+            pad = max(len(name) for name, _ in products)
+            for name, count in products:
+                parts.append(f"  {name:<{pad}}  {count:>5}")
+        parts.append("")
+        rows: list[tuple[str, int]] = []
+        if self.decrypted:
+            label = "decrypted"
+            if self.decrypted_default:
+                non_default = self.decrypted - self.decrypted_default
+                detail_parts: list[str] = []
+                if self.decrypted_default:
+                    detail_parts.append(f"{self.decrypted_default} default password")
+                if non_default:
+                    detail_parts.append(f"{non_default} provided")
+                label = f"decrypted ({', '.join(detail_parts)})"
+            rows.append((label, self.decrypted))
+        if self.protection_stripped:
+            rows.append(("protection stripped", self.protection_stripped))
+        if self.skipped_no_protection:
+            rows.append(("no protection — skipped", self.skipped_no_protection))
+        if self.skipped_not_recoverable:
+            rows.append(("not recoverable — skipped", self.skipped_not_recoverable))
+        if self.still_encrypted:
+            rows.append(("still encrypted — hash emitted", self.still_encrypted))
+        if self.files_written:
+            rows.append(("files written", self.files_written))
+        if rows:
+            pad = max(len(label) for label, _ in rows)
+            for label, count in rows:
+                parts.append(f"  {label:<{pad}}  {count:>5}")
+        if self.errors:
+            parts.append(f"  {self.errors} error{'s' if self.errors != 1 else ''}")
+        return "\n".join(parts)
+
+
+# --- Gate description functions -----------------------------------------------
+
+
+def _product_description(product: Product, *, encrypted: bool = False) -> str:
+    """Return 'Excel workbook', 'Word document', etc."""
+    if product is Product.UNKNOWN and encrypted:
+        return "encrypted Office document"
+    return _PRODUCT_DESCRIPTIONS.get(product, "Office file")
+
+
+def _file_header(path: Path, product: Product, *, encrypted: bool = False) -> str:
+    """Format the file header line: 'budget.xlsx — Excel workbook'."""
+    desc = _product_description(product, encrypted=encrypted)
+    suffix = " (encrypted)" if encrypted and product is not Product.UNKNOWN else ""
+    return f"{path.name} — {desc}{suffix}"
+
+
+def _file_status_word(gates: list[Gate]) -> str:
+    """Classify a file's gates into a user-facing status word."""
+    if not gates:
+        return "no protection"
+    has_encrypted = any(g.recovery in (RecoveryClass.CRACK, RecoveryClass.KEYSPACE, RecoveryClass.DECRYPT) and g.gate not in (GateType.SIGNATURE, GateType.IRM) for g in gates)
+    if has_encrypted:
+        return "encrypted"
+    has_blocked = any((g.gate is GateType.IRM or g.recovery is RecoveryClass.NONE) and g.gate is not GateType.SIGNATURE for g in gates)
+    has_strippable = any(g.recovery in _STRIPPABLE_RECOVERIES for g in gates)
+    if has_strippable:
+        return "protected"
+    if has_blocked:
+        return "not recoverable"
+    return "protected"
+
+
+def _describe_open_gate(gate: Gate) -> str:
+    """Describe a document-open encryption gate in human terms."""
+    scheme_name = _SCHEME_HUMAN_NAMES.get(gate.scheme, "") if gate.scheme else ""
+    qualifier = f" ({scheme_name})" if scheme_name else ""
+    return f"Document-open password{qualifier}"
+
+
+def _describe_protection_gates(gates: list[Gate]) -> list[str]:
+    """Group non-OPEN gates by type and produce human-readable description lines."""
+    by_type: dict[GateType, list[Gate]] = {}
+    for g in gates:
+        if g.gate is GateType.OPEN:
+            continue
+        by_type.setdefault(g.gate, []).append(g)
+
+    lines: list[str] = []
+    for gate_type, group in by_type.items():
+        count = len(group)
+        singular, plural = _GATE_HUMAN_DESCRIPTIONS.get(gate_type, (gate_type.value, gate_type.value))
+
+        if gate_type in (GateType.PROTECT_SHEET, GateType.ALLOW_EDIT_RANGES):
+            with_hash = [g for g in group if g.scheme is not None]
+            without_hash = count - len(with_hash)
+            desc = f"1 {singular}" if count == 1 else f"{count} {plural}"
+            if with_hash and without_hash and count > 1:
+                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme else "hash"
+                desc += f" ({len(with_hash)} with {scheme_name} hashes, {without_hash} without password)"
+            elif with_hash and count > 1:
+                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme else "hash"
+                desc += f" ({scheme_name} hashes)"
+            elif without_hash and count > 1:
+                desc += " (no password)"
+            elif with_hash:
+                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme else "hash"
+                desc += f" ({scheme_name} hash)"
+            else:
+                desc += " (no password)"
+        else:
+            desc = singular
+            if group[0].scheme is not None:
+                scheme_name = _SCHEME_HUMAN_NAMES.get(group[0].scheme, "")
+                if scheme_name:
+                    desc += f" ({scheme_name})"
+
+        all_strippable = all(g.recovery in _STRIPPABLE_RECOVERIES for g in group)
+        all_blocked = all(g.recovery is RecoveryClass.NONE for g in group)
+        if all_blocked:
+            desc += " — not recoverable"
+        elif all_strippable:
+            desc += " — strippable"
+
+        lines.append(desc)
+    return lines
+
+
+def _action_hint(gates: list[Gate], path: Path) -> str:
+    """Produce the action hint for single-file info output."""
+    open_gates = [g for g in gates if g.gate is GateType.OPEN]
+    if open_gates:
+        gate = open_gates[0]
+        mode_str = f"hashcat -m {gate.hashcat_mode}" if gate.hashcat_mode else "hashcat"
+        return f"Crack with {mode_str}, or: opt unlock -p <password>"
+    return f"Run: opt unlock {path.name}"
+
+
+def _gate_summary_compact(gates: list[Gate]) -> str:
+    """Produce a one-line summary of gates for multi-file table output."""
+    open_gates = [g for g in gates if g.gate is GateType.OPEN]
+    if open_gates:
+        gate = open_gates[0]
+        scheme_name = _SCHEME_HUMAN_NAMES.get(gate.scheme, "") if gate.scheme else ""
+        return f"document-open password ({scheme_name})" if scheme_name else "document-open password"
+
+    by_type: dict[GateType, list[Gate]] = {}
+    for g in gates:
+        by_type.setdefault(g.gate, []).append(g)
+
+    parts: list[str] = []
+    all_strippable = all(g.recovery in _STRIPPABLE_RECOVERIES for g in gates)
+    for gate_type, group in by_type.items():
+        singular, plural = _GATE_HUMAN_DESCRIPTIONS.get(gate_type, (gate_type.value, gate_type.value))
+        count = len(group)
+        if gate_type in (GateType.PROTECT_SHEET, GateType.ALLOW_EDIT_RANGES):
+            parts.append(f"{count} {plural}" if count > 1 else f"1 {singular}")
+        else:
+            parts.append(singular.lower())
+    summary = ", ".join(parts)
+    if all_strippable:
+        summary += " (strippable)"
+    return summary
+
+
 # ==========================================================================
 # Input resolution
 # ==========================================================================
 def _resolve_inputs(paths: list[Path]) -> list[Path]:
     """Resolve a mix of files, directories, and globs into individual Office files.
 
-    For directories: recursively find files with recognized Office extensions.
-    For files: use as-is (no extension filter -- the user chose them explicitly).
+    For directories: two-pass filter. First, files with a recognized Office
+    extension are included (fast, no I/O). Second, files WITHOUT an Office
+    extension are checked by magic bytes so renamed Office files (e.g. a
+    ``.pdf`` that is actually an OLE compound file) are still found. Files
+    whose extension says Office but whose magic bytes say otherwise (e.g. a
+    ``.doc`` that is really a PDF) are caught later during detection.
+
+    For explicitly named files: included as-is (the user chose them — detection
+    and any "not an Office file" message happen downstream).
+
     The returned list is sorted by filename for deterministic batch output.
     """
     resolved: list[Path] = []
     for p in paths:
         if p.is_dir():
             for child in sorted(p.rglob("*")):
-                if child.is_file():
-                    logger.debug("directory scan: found %s", child)
+                if not child.is_file():
+                    continue
+                if child.suffix.lower() in _OFFICE_EXTENSIONS:
+                    resolved.append(child)
+                elif classify_container(child) is not ContainerKind.UNKNOWN:
+                    logger.debug("directory scan: non-Office extension but valid magic: %s", child)
                     resolved.append(child)
         elif p.is_file():
             resolved.append(p)
         else:
-            # Should rarely happen (typer validates exists=True), but be safe.
             _err.print(f"[yellow]Skipping {p}: not a file or directory[/]")
             logger.debug("skipping non-file non-directory: %s", p)
-    # Sort by name for deterministic output order across batch runs.
     resolved.sort(key=lambda x: x.name)
     return resolved
 
@@ -318,18 +664,6 @@ def _build_tags(gates: list[Gate]) -> list[str]:
     return tags
 
 
-def format_file_line(filename: str, gates: list[Gate], pad_to: int = 0) -> str:
-    """Format the one-liner ``status:scheme`` output for a single file.
-
-    Returns a string like ``secret.xlsx  encrypted:agile-sha512  removable:sheets(3)``.
-    When ``pad_to`` is set (for multi-file batch output), the filename column is
-    left-padded to that width so the tags align vertically.
-    """
-    tags = _build_tags(gates)
-    padded_name = filename.ljust(pad_to)
-    return f"{padded_name}  {'  '.join(tags)}"
-
-
 def _build_json_gates(gates: list[Gate]) -> list[dict[str, str | int]]:
     """Build the JSON-serializable gate list for a single file.
 
@@ -377,7 +711,7 @@ def _build_json_gates(gates: list[Gate]) -> list[dict[str, str | int]]:
 # Shared helpers
 # ==========================================================================
 def _derive_output(path: Path, tag: str) -> Path:
-    """Return ``<stem>.<tag><ext>`` next to ``path`` (e.g. ``secret.decrypted.docx``)."""
+    """Return ``<stem>.<tag><ext>`` next to ``path`` (e.g. ``secret.unlocked.docx``)."""
     return path.with_name(f"{path.stem}.{tag}{path.suffix}")
 
 
@@ -569,58 +903,102 @@ def _pick_hash_line(path: Path, *, use_unified: bool) -> str | None:
     return h.value
 
 
-def _info_emit_status(
-    path: Path,
-    result: DetectResult,
-    gates: list[Gate],
-    hash_line: str | None,
+def _info_emit_json(
+    file_result: _FileResult,
     *,
     use_unified: bool,
     json_records: list[dict[str, object]],
-    json_output: bool,
-    quiet: bool,
-    pad_to: int,
 ) -> None:
-    """Emit the per-file status to stderr (JSON record or one-liner).
+    """Append a JSON record for one file (flushed in bulk by the caller)."""
+    record: dict[str, object] = {
+        "path": str(file_result.path),
+        "container": file_result.container.value,
+        "product": file_result.product.value,
+        "gates": _build_json_gates(file_result.gates),
+    }
+    if file_result.hash_line is not None:
+        record["hash"] = file_result.hash_line
+        record["hash_format"] = "unified" if use_unified else "hashcat"
+    json_records.append(record)
 
-    When ``json_output`` is set, appends a record to ``json_records`` (flushed
-    in bulk by the caller).  Otherwise prints the ``format_file_line`` one-liner.
-    """
-    if json_output:
-        record: dict[str, object] = {
-            "path": str(path),
-            "container": result.container.value,
-            "product": result.product.value,
-            "gates": _build_json_gates(gates),
-        }
-        if hash_line is not None:
-            record["hash"] = hash_line
-            record["hash_format"] = "unified" if use_unified else "hashcat"
-        json_records.append(record)
-    elif not quiet:
-        line = format_file_line(path.name, gates, pad_to=pad_to)
-        _err.print(line)
+
+def _info_print_single(file_result: _FileResult) -> None:
+    """Print detailed single-file info output to stderr."""
+    _err.print(f"[bold]{_file_header(file_result.path, file_result.product, encrypted=file_result.encrypted)}[/]")
+    if file_result.error:
+        _err.print(f"  [red]Error: {file_result.error}[/]")
+        return
+    if not file_result.gates:
+        _err.print("  No protection.")
+        return
+    open_gates = [g for g in file_result.gates if g.gate is GateType.OPEN]
+    for og in open_gates:
+        _err.print(f"  {_describe_open_gate(og)}")
+    for line in _describe_protection_gates(file_result.gates):
+        _err.print(f"  {line}")
+    _err.print(f"  {_action_hint(file_result.gates, file_result.path)}")
+
+
+def _info_print_table_line(file_result: _FileResult, pad_to: int) -> None:
+    """Print one compact table line for multi-file info output to stderr."""
+    status_word = _file_status_word(file_result.gates)
+    if file_result.error:
+        summary = f"error: {file_result.error}"
+    elif not file_result.gates:
+        summary = ""
+    else:
+        open_gates = [g for g in file_result.gates if g.gate is GateType.OPEN]
+        summary = _describe_open_gate(open_gates[0]) if open_gates else _gate_summary_compact(file_result.gates)
+    padded = file_result.path.name.ljust(pad_to)
+    status_padded = status_word.ljust(16)
+    _err.print(f"{padded}  {status_padded}{summary}")
+
+
+def _info_emit_results(
+    results: list[_FileResult],
+    *,
+    stats: _InfoStats,
+    single_file: bool,
+    no_hash: bool,
+    quiet: bool,
+    json_output: bool,
+    max_name_len: int,
+) -> None:
+    """Emit per-file output (stderr + stdout hash lines) and accumulate stats."""
+    for file_result in results:
+        if file_result.container is ContainerKind.UNKNOWN and not file_result.error:
+            if single_file:
+                _err.print(f"{file_result.path.name} — not a recognized Office file, skipping.")
+            continue
+        stats.record(file_result)
+        if not quiet and not json_output:
+            if single_file:
+                _info_print_single(file_result)
+            else:
+                _info_print_table_line(file_result, max_name_len)
+        # Hash line to stdout AFTER the stderr status so they group visually.
+        if not no_hash:
+            typer.echo(file_result.hash_line if file_result.hash_line is not None else "")
 
 
 # ==========================================================================
 # info command -- parallel worker
 # ==========================================================================
-def _info_one_file(args: tuple[Path, bool, int]) -> tuple[str, str | None]:
+def _info_one_file(args: tuple[Path, bool]) -> _FileResult:
     """Process one file in a worker process: detect, enumerate gates, extract hash.
 
-    Returns ``(status_line, hash_line_or_None)`` — pre-formatted strings so the
-    main process only needs to print them in order.  Defined at module level (not
-    a closure) so ``ProcessPoolExecutor`` can pickle it with ``forkserver``.
+    Returns a ``_FileResult`` with structured data so the main process can
+    format and accumulate stats.  Defined at module level (not a closure) so
+    ``ProcessPoolExecutor`` can pickle it with ``forkserver``.
     """
-    path, use_unified, pad_to = args
+    path, use_unified = args
     try:
+        result = detect_file(path)
         gates = _get_gates(path)
         hash_line = _pick_hash_line(path, use_unified=use_unified)
-        status = format_file_line(path.name, gates, pad_to=pad_to)
-    except Exception:
-        status = format_file_line(path.name, [], pad_to=pad_to)
-        hash_line = None
-    return status, hash_line
+    except Exception as exc:
+        return _FileResult(path=path, product=Product.UNKNOWN, container=ContainerKind.UNKNOWN, encrypted=False, gates=[], hash_line=None, error=str(exc))
+    return _FileResult(path=path, product=result.product, container=result.container, encrypted=result.encrypted, gates=gates, hash_line=hash_line)
 
 
 # ==========================================================================
@@ -642,21 +1020,13 @@ def info(
     """Show protection gates on Office files and emit crackable hashes.
 
     stdout: crackable hash lines (one per file, blank line if none) -- pipe to hashcat.
-    stderr: status:scheme one-liner per file (or JSON with --json / --format json).
+    stderr: human-readable protection summary per file.
 
     Accepts individual files, directories (recursively finds Office files), and
-    shell glob patterns.  Exit 0 if at least one hash was emitted.
-
-    Status key:
-      encrypted:   You need the password to read this file
-      removable:   Can be removed without the password (opt unlock)
-      trivial:     Instantly reversible, no password needed (opt unlock)
-      info:        Not a password gate -- just informational
-      blocked:     Not recoverable (needs certificate or server key)
-      open         No protection at all
+    shell glob patterns.
 
     Examples:
-      opt info secret.xlsx                  Show gates + hash
+      opt info secret.xlsx                  Show protection details
       opt info *.docx | hashcat -m 37000   Batch extract + crack
       opt info *.xlsx 2>/dev/null           Hashes only (for scripting)
       opt info folder/                      Recurse into directory
@@ -667,85 +1037,66 @@ def info(
         _err.print("[red]No Office files found in the given paths.[/]")
         raise typer.Exit(code=EXIT_ERROR)
 
-    # --format json implies --json (structured JSON output on stderr).
     if format_.lower() == "json":
         json_output = True
 
-    # Compute the longest filename for aligned column output.
-    max_name_len = max(len(f.name) for f in files)
-
-    any_hash_emitted = False
-    json_records: list[dict[str, object]] = []  # Populated only when --json.
     use_unified = format_.lower() in ("unified", "json")
+    start_time = time.monotonic()
+    single_file = len(files) == 1
+    max_name_len = min(max(len(f.name) for f in files), 60)
 
-    # Decide parallelism: 0 = auto (CPU count), 1 = sequential, N = N workers.
-    # Fall back to sequential for --debug (child logging), --json (accumulates
-    # records), single files (no parallelism benefit), and --no-hash (trivial).
+    json_records: list[dict[str, object]] = []
+    stats = _InfoStats()
+    results: list[_FileResult] = []
+
     workers = jobs if jobs > 0 else (os.cpu_count() or 4)
     debug_active = logger.isEnabledFor(logging.DEBUG)
     use_parallel = workers > 1 and not debug_active and not json_output and len(files) > 1
 
     if use_parallel:
         chunksize = max(1, len(files) // (workers * 4))
-        work_args = [(p, use_unified, max_name_len) for p in files]
+        work_args = [(p, use_unified) for p in files]
         with ProcessPoolExecutor(max_workers=workers) as executor:
-            for status, hash_line in executor.map(_info_one_file, work_args, chunksize=chunksize):
-                if hash_line is not None:
-                    any_hash_emitted = True
-                if not no_hash:
-                    typer.echo(hash_line if hash_line is not None else "")
-                if not quiet:
-                    _err.print(status)
+            results = list(executor.map(_info_one_file, work_args, chunksize=chunksize))
     else:
         for path in files:
             logger.debug("processing: %s", path)
+            try:
+                result = detect_file(path)
+                _log_detect_result(result)
+                gates = _get_gates(path)
+                _log_gates(gates)
+                hash_line = _pick_hash_line(path, use_unified=use_unified) if not no_hash else None
+                file_result = _FileResult(path=path, product=result.product, container=result.container, encrypted=result.encrypted, gates=gates, hash_line=hash_line)
+            except Exception as exc:
+                logger.debug("error processing %s: %s", path, exc)
+                file_result = _FileResult(path=path, product=Product.UNKNOWN, container=ContainerKind.UNKNOWN, encrypted=False, gates=[], hash_line=None, error=str(exc))
+            results.append(file_result)
+            if json_output:
+                _info_emit_json(file_result, use_unified=use_unified, json_records=json_records)
 
-            # Detect container and enumerate gates.
-            result = detect_file(path)
-            _log_detect_result(result)
-            gates = _get_gates(path)
-            _log_gates(gates)
+    _info_emit_results(results, stats=stats, single_file=single_file, no_hash=no_hash, quiet=quiet, json_output=json_output, max_name_len=max_name_len)
 
-            # Extract hash line for stdout (unless suppressed).
-            hash_line = _pick_hash_line(path, use_unified=use_unified) if not no_hash else None
-            if hash_line is not None:
-                any_hash_emitted = True
+    if not quiet and not json_output and not single_file:
+        stats.elapsed = time.monotonic() - start_time
+        _err.print(f"\n{stats.format()}")
 
-            # Emit hash line to stdout (blank line when no hash, for file-to-line alignment).
-            if not no_hash:
-                typer.echo(hash_line if hash_line is not None else "")
-
-            # Emit status to stderr (JSON or one-liner).
-            _info_emit_status(
-                path,
-                result,
-                gates,
-                hash_line,
-                use_unified=use_unified,
-                json_records=json_records,
-                json_output=json_output,
-                quiet=quiet,
-                pad_to=max_name_len,
-            )
-
-    # Flush the JSON blob to stderr if --json was given.
     if json_output and not quiet:
         sys.stderr.write(json.dumps({"files": json_records}, indent=2) + "\n")
-
-    # Exit 0 when at least one hash was emitted; 1 otherwise.
-    if not any_hash_emitted and not no_hash:
-        raise typer.Exit(code=EXIT_ERROR)
 
 
 # ==========================================================================
 # unlock command -- recovery ladder helpers
 # ==========================================================================
-def _unlock_decode(path: Path, result: DetectResult, *, force: bool) -> Path | None:
+def _unlock_decode(path: Path, result: DetectResult, *, force: bool, tmp_dir: Path | None = None) -> Path | None:
     """Step 1: decode keyless obfuscation if applicable.
 
     Handles: Outlook PST/OST body cipher, Access Jet .mdb password recovery,
     and Access MDW workgroup account password recovery.  Returns the decoded
     output path on success, ``None`` when the step does not apply.
+
+    When ``tmp_dir`` is given, intermediates are written there instead of next
+    to the input (used by ``unlock`` to keep intermediates temporary).
     """
     if result.container is ContainerKind.ACCESS:
         return _unlock_decode_access(path)
@@ -757,14 +1108,15 @@ def _unlock_decode(path: Path, result: DetectResult, *, force: bool) -> Path | N
     decode_fn = getattr(pst_handler, "decode_body", None)
     if decode_fn is None:
         return None
-    decode_target = _derive_output(path, "decoded")
+    decode_target = (tmp_dir / f"decoded{path.suffix}") if tmp_dir else _derive_output(path, "unlocked")
     try:
-        _guard_output(path, decode_target, force=force)
+        if not tmp_dir:
+            _guard_output(path, decode_target, force=force)
         decode_fn(path, decode_target)
     except (NotImplementedError, LookupError, ValueError, SystemExit):
         logger.debug("PST decode step did not apply or failed for %s", path)
         return None
-    _err.print(f"[green]PST body decoded ->[/] {decode_target}")
+    logger.debug("decoded %s -> %s", path, decode_target)
     return decode_target
 
 
@@ -802,6 +1154,7 @@ def _unlock_decrypt(
     wordlist: Path | None,
     *,
     force: bool,
+    tmp_dir: Path | None = None,
 ) -> tuple[Path | None, int]:
     """Step 2: decrypt open-encryption with defaults then user-supplied candidates.
 
@@ -810,32 +1163,34 @@ def _unlock_decrypt(
     ``EXIT_OK`` on success or skip, or a terminal code (``EXIT_CRACK_REQUIRED``,
     ``EXIT_UNRECOVERABLE``) when the step fails -- the caller decides whether to
     abort or continue with the next file.
+
+    When ``tmp_dir`` is given, the decrypted file is written there instead of
+    next to the input (used by ``unlock`` to keep intermediates temporary).
     """
     decrypt_result = detect_file(source)
     if not decrypt_result.encrypted:
         logger.debug("not encrypted, skipping decrypt step")
         return None, EXIT_OK
 
-    # IRM/RMS: the content key is held off-file -- nothing we can do.
     if _is_unrecoverable(source):
-        _err.print("[yellow]Rights-managed (IRM/RMS): the content key is held off-file; not recoverable.[/]")
+        logger.debug("IRM/RMS detected, skipping decrypt step")
         return None, EXIT_UNRECOVERABLE
 
-    decrypt_target = _derive_output(source, "decrypted")
+    decrypt_target = (tmp_dir / f"decrypted{source.suffix}") if tmp_dir else _derive_output(source, "unlocked")
     try:
-        _guard_output(source, decrypt_target, force=force)
+        if not tmp_dir:
+            _guard_output(source, decrypt_target, force=force)
         opened = _decrypt_with_candidates(source, decrypt_target, _candidate_passwords(password, wordlist))
     except (NotImplementedError, LookupError, SystemExit) as exc:
-        _err.print(f"[yellow]decrypt unavailable: {exc}[/]")
+        logger.debug("decrypt unavailable: %s", exc)
         opened = False
 
     if opened:
-        _err.print(f"[green]Decrypted ->[/] {decrypt_target}")
+        logger.debug("decrypted %s -> %s", source, decrypt_target)
         return decrypt_target, EXIT_OK
 
-    # Could not decrypt -- emit hashes for cracking and signal the caller.
-    _err.print("[yellow]Cannot produce plaintext; emitting hashes for cracking.[/]")
-    _emit_hashes(source)
+    if not tmp_dir:
+        _emit_hashes(source)
     return None, EXIT_CRACK_REQUIRED
 
 
@@ -853,35 +1208,149 @@ def _unlock_collide(source: Path) -> None:
         _err.print(f"[cyan]{gate.display_name}[/]: [bold]collide[/] [dim]-- {gate.note}[/]")
 
 
-def _unlock_bypass(
-    source: Path,
-    out: Path | None,
+def _unlock_one_file(
+    path: Path,
     *,
+    out: Path | None,
+    password: str | None,
+    wordlist: Path | None,
+    remove_signatures: bool,
+    force: bool,
+    stats: _UnlockStats,
+) -> int:
+    """Process one file through the recovery ladder, returning the exit code."""
+    result = detect_file(path)
+    gates = _get_gates(path)
+    stats.record_product(result.product)
+    logger.debug("unlock: processing %s", path)
+
+    _err.print(f"\n[bold]{_file_header(path, result.product, encrypted=result.encrypted)}[/]")
+
+    if not gates and not result.encrypted:
+        _err.print("  No protection, nothing to do.")
+        stats.skipped_no_protection += 1
+        return EXIT_OK
+
+    if _is_unrecoverable(path):
+        _err.print("  [yellow]Rights management (IRM) — not recoverable.[/]")
+        stats.skipped_not_recoverable += 1
+        return EXIT_OK
+
+    found_parts: list[str] = []
+    open_gates = [g for g in gates if g.gate is GateType.OPEN]
+    if open_gates:
+        found_parts.append(_describe_open_gate(open_gates[0]))
+    found_parts.extend(_describe_protection_gates(gates))
+    if found_parts:
+        joined = ", ".join(found_parts)
+        _err.print(f"  Found: {joined[0].lower()}{joined[1:]}")
+
+    exit_code = EXIT_OK
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        source: Path = path
+        was_decrypted = False
+        members_stripped = 0
+
+        decoded = _unlock_decode(path, result, force=force, tmp_dir=tmp)
+        if decoded is not None:
+            source = decoded
+
+        decrypted, decrypt_exit = _unlock_decrypt(source, password, wordlist, force=force, tmp_dir=tmp)
+        if decrypt_exit != EXIT_OK:
+            exit_code = decrypt_exit
+        if decrypted is not None:
+            source = decrypted
+            was_decrypted = True
+
+        _unlock_collide(source)
+
+        final_out = _unlock_produce_output(path, source, out=out, remove_signatures=remove_signatures, force=force)
+        if isinstance(final_out, Path):
+            members_stripped = _count_stripped(path, source, final_out)
+        else:
+            members_stripped = 0
+            final_out = None
+
+        _unlock_report(path, gates, open_gates, stats, was_decrypted=was_decrypted, members_stripped=members_stripped, final_out=final_out)
+
+    return exit_code
+
+
+def _unlock_produce_output(
+    original: Path,
+    source: Path,
+    *,
+    out: Path | None,
     remove_signatures: bool,
     force: bool,
 ) -> Path | None:
-    """Step 4: strip all non-encrypting gates.
+    """Write the final ``.unlocked`` output from bypass or copy."""
+    current_gates = _get_gates(source)
+    if current_gates:
+        target = out if out is not None else _derive_output(original, "unlocked")
+        try:
+            _guard_output(original, target, force=force)
+            changed = bypass_file(source, target, remove_signatures=remove_signatures)
+        except (NotImplementedError, LookupError, SystemExit) as exc:
+            logger.debug("bypass failed for %s: %s", source, exc)
+            return None
+        if not changed:
+            target.unlink(missing_ok=True)
+            return None
+        return target
+    if source != original:
+        target = out if out is not None else _derive_output(original, "unlocked")
+        _guard_output(original, target, force=force)
+        shutil.copy2(source, target)
+        return target
+    return None
 
-    Clears modify / write-reservation, sheet / workbook / document / range /
-    revisions protection, the VBA project lock, PST advisory password, and ODF
-    body protection.  Signatures are left unless ``remove_signatures`` is set.
-    Returns the produced path on success, ``None`` on failure.
-    """
-    bypass_target = out if out is not None else _derive_output(source, "bypassed")
-    logger.debug("unlock bypass: source=%s remove_signatures=%s", source, remove_signatures)
-    try:
-        _guard_output(source, bypass_target, force=force)
-        changed = bypass_file(source, bypass_target, remove_signatures=remove_signatures)
-    except (NotImplementedError, LookupError, SystemExit) as exc:
-        _err.print(f"[yellow]bypass unavailable: {exc}[/]")
-        logger.debug("bypass failed for %s: %s", source, exc)
-        return None
-    if not changed:
-        logger.debug("unlock bypass: handler rewrote 0 members, removing no-op output")
-        bypass_target.unlink(missing_ok=True)
-        return None
-    _err.print(f"[green]Bypassed ->[/] {bypass_target}")
-    return bypass_target
+
+def _count_stripped(original: Path, source: Path, final_out: Path) -> int:
+    """Return the number of members stripped by comparing source vs output gates."""
+    source_gates = _get_gates(source) if source != original else _get_gates(original)
+    final_gates = _get_gates(final_out)
+    return max(0, len(source_gates) - len(final_gates))
+
+
+def _unlock_report(
+    path: Path,
+    gates: list[Gate],
+    open_gates: list[Gate],
+    stats: _UnlockStats,
+    *,
+    was_decrypted: bool,
+    members_stripped: int,
+    final_out: Path | None,
+) -> None:
+    """Print the per-file narrative and update stats."""
+    if was_decrypted and members_stripped:
+        _err.print(f"  Decrypted, stripped protection from {members_stripped} member{'s' if members_stripped != 1 else ''}")
+        stats.decrypted += 1
+        stats.protection_stripped += 1
+    elif was_decrypted:
+        _err.print("  Decrypted")
+        stats.decrypted += 1
+    elif members_stripped:
+        _err.print(f"  Stripped protection from {members_stripped} member{'s' if members_stripped != 1 else ''}")
+        stats.protection_stripped += 1
+
+    if final_out is not None:
+        remaining = _get_gates(final_out)
+        status_desc = "no protection remaining" if not remaining else f"{len(remaining)} gate{'s' if len(remaining) != 1 else ''} remaining"
+        _err.print(f"  [green]Wrote:[/] {final_out} ({status_desc})")
+        stats.files_written += 1
+    elif open_gates and not was_decrypted:
+        _err.print("  [yellow]Cannot decrypt without password[/]")
+        stats.still_encrypted += 1
+        for gate in gates:
+            if gate.hashcat_mode is not None:
+                _err.print(f"  Hash for cracking (hashcat -m {gate.hashcat_mode}):")
+                stats.hashcat_modes[gate.hashcat_mode] = stats.hashcat_modes.get(gate.hashcat_mode, 0) + 1
+                break
+        for h in _extract_hashes_safe(path):
+            typer.echo(h.opt_value or h.value)
 
 
 # ==========================================================================
@@ -905,12 +1374,9 @@ def unlock(
 ) -> None:
     """Try everything cheapest-first to recover Office file(s).
 
-    Orchestrates the full recovery ladder per file:
-    info -> decode -> decrypt -> collide -> bypass -> info.  Each step degrades
-    gracefully when it does not apply or the handler is unfinished.  Supports
-    multiple files and directories (each file processed independently).
-
-    ``-o`` / ``--output`` is only valid with a single input file.
+    Walks the recovery ladder per file: decode, decrypt, collide, bypass.
+    Each step degrades gracefully when it does not apply.  Produces a single
+    ``.unlocked`` output file per input when any step succeeds.
 
     Examples:
       opt unlock secret.xlsx                       Auto-recover
@@ -923,58 +1389,21 @@ def unlock(
         _err.print("[red]No Office files found in the given paths.[/]")
         raise typer.Exit(code=EXIT_ERROR)
 
-    # --output only makes sense with a single file.
     if out is not None and len(files) > 1:
         _err.print("[red]--output/-o can only be used with a single input file.[/]")
         raise typer.Exit(code=EXIT_REFUSED)
 
-    # Track the worst exit code across all files so the process signals
-    # partial failure to the caller (e.g. some files needed cracking).
+    start_time = time.monotonic()
+    stats = _UnlockStats()
     worst_exit = EXIT_OK
 
     for path in files:
-        _err.print(f"\n[bold]--- {path.name} ---[/]")
-        logger.debug("unlock: processing %s", path)
+        file_exit = _unlock_one_file(path, out=out, password=password, wordlist=wordlist, remove_signatures=remove_signatures, force=force, stats=stats)
+        worst_exit = max(worst_exit, file_exit)
 
-        # Step 0: triage -- show the file's gates before doing anything.
-        result = detect_file(path)
-        gates = _get_gates(path)
-        line = format_file_line(path.name, gates)
-        _err.print(line)
-
-        # Step 1: decode keyless obfuscation (PST body cipher, etc.).
-        produced = _unlock_decode(path, result, force=force)
-        source = produced if produced is not None else path
-
-        # Step 2: decrypt open-encryption with defaults / password / wordlist.
-        decrypted, decrypt_exit = _unlock_decrypt(source, password, wordlist, force=force)
-        if decrypt_exit != EXIT_OK:
-            # Record the failure but continue to subsequent steps -- collide
-            # and bypass may still clear non-encrypting protection.
-            worst_exit = max(worst_exit, decrypt_exit)
-        if decrypted is not None:
-            produced = decrypted
-            source = decrypted
-
-        # Step 3: report collidable (tiny) verifiers.
-        _unlock_collide(source)
-
-        # Step 4: strip non-encrypting protection (skip when nothing to strip).
-        current_gates = _get_gates(source)
-        if current_gates:
-            bypassed = _unlock_bypass(source, out, remove_signatures=remove_signatures, force=force)
-        else:
-            logger.debug("unlock bypass: no gates on %s, skipping", source)
-            bypassed = None
-        if bypassed is not None:
-            produced = bypassed
-
-        # Final triage: show the gates of whatever file was produced.
-        if produced is not None:
-            _err.print("[bold]Final triage:[/]")
-            final_gates = _get_gates(produced)
-            final_line = format_file_line(produced.name, final_gates)
-            _err.print(final_line)
+    if len(files) > 1:
+        stats.elapsed = time.monotonic() - start_time
+        _err.print(f"\n{stats.format()}")
 
     if worst_exit != EXIT_OK:
         raise typer.Exit(code=worst_exit)
@@ -1042,7 +1471,7 @@ def _decode_pst(path: Path, handler: FormatHandler, out: Path | None, *, force: 
     The body cipher is keyless (NDB_CRYPT_PERMUTE or NDB_CRYPT_CYCLIC) -- no
     password is needed.  The CRC-32 advisory password is a separate gate.
     """
-    target = out if out is not None else _derive_output(path, "decoded")
+    target = out if out is not None else _derive_output(path, "unlocked")
     _guard_output(path, target, force=force)
     decode_fn = getattr(handler, "decode_body", None)
     if decode_fn is None:
@@ -1084,7 +1513,7 @@ def _decode_ole(path: Path, out: Path | None, *, force: bool) -> None:
     from a 16-bit password verifier.  An empty password (or any collision) is
     all that is needed.
     """
-    target = out if out is not None else _derive_output(path, "decoded")
+    target = out if out is not None else _derive_output(path, "unlocked")
     _guard_output(path, target, force=force)
     try:
         decrypt_file(path, target, "")
@@ -1103,7 +1532,7 @@ def adv_decode(
     path: _InputFile,
     out: Annotated[
         Path | None,
-        typer.Argument(dir_okay=False, help="Decoded output path (default: <stem>.decoded<ext>)"),
+        typer.Argument(dir_okay=False, help="Output path (default: <stem>.unlocked<ext>)"),
     ] = None,
     *,
     force: _Force = False,
@@ -1207,7 +1636,7 @@ def adv_bypass(
     path: _InputFile,
     out: Annotated[
         Path | None,
-        typer.Argument(dir_okay=False, help="Unprotected output path (default: <stem>.bypassed<ext>)"),
+        typer.Argument(dir_okay=False, help="Output path (default: <stem>.unlocked<ext>)"),
     ] = None,
     *,
     remove_signatures: Annotated[
@@ -1225,7 +1654,7 @@ def adv_bypass(
     integrity/authenticity claim).  Does not attempt open-encryption -- that is
     ``decrypt``.
     """
-    target = out if out is not None else _derive_output(path, "bypassed")
+    target = out if out is not None else _derive_output(path, "unlocked")
     _guard_output(path, target, force=force)
     try:
         changed = bypass_file(path, target, remove_signatures=remove_signatures)
@@ -1246,7 +1675,7 @@ def adv_strip(
     path: _InputFile,
     out: Annotated[
         Path | None,
-        typer.Argument(dir_okay=False, help="Stripped output path (default: <stem>.stripped<ext>)"),
+        typer.Argument(dir_okay=False, help="Output path (default: <stem>.unlocked<ext>)"),
     ] = None,
     *,
     force: _Force = False,
@@ -1259,7 +1688,7 @@ def adv_strip(
     explicit name for scripts that want the nuclear option.  The input is never
     modified.
     """
-    target = out if out is not None else _derive_output(path, "stripped")
+    target = out if out is not None else _derive_output(path, "unlocked")
     _guard_output(path, target, force=force)
     try:
         # remove_signatures=True is the key difference from bypass.
@@ -1277,7 +1706,7 @@ def adv_decrypt(
     path: _InputFile,
     out: Annotated[
         Path | None,
-        typer.Argument(dir_okay=False, help="Decrypted output path (default: <stem>.decrypted<ext>)"),
+        typer.Argument(dir_okay=False, help="Output path (default: <stem>.unlocked<ext>)"),
     ] = None,
     *,
     password: _Password = None,
@@ -1292,7 +1721,7 @@ def adv_decrypt(
     that opens the file.  On success, run ``opt info`` and ``opt advanced bypass``
     on the output, which may still carry inner protection.
     """
-    target = out if out is not None else _derive_output(path, "decrypted")
+    target = out if out is not None else _derive_output(path, "unlocked")
     _guard_output(path, target, force=force)
 
     # Bail early on IRM/RMS -- the content key is held off-file.
@@ -1457,7 +1886,7 @@ def adv_verify(
       not an Office file     -- not a recognized Office container
 
     Examples:
-      opt advanced verify secret.decrypted.xlsx           Post-decrypt check
+      opt advanced verify secret.unlocked.xlsx           Post-unlock check
       opt advanced verify secret.xlsx -p "hunter2"        Verify a password
     """
     result = detect_file(path)
