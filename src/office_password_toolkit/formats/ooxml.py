@@ -240,7 +240,7 @@ def _iso_material(attrs: dict[str, str], prefix: str) -> _Material | None:
     salt = attrs.get(_iso_key(prefix, "SaltValue"))
     digest = attrs.get(_iso_key(prefix, "HashValue"))
     spin = attrs.get(_iso_key(prefix, "SpinCount"))
-    if not (algorithm and salt and digest and spin):
+    if algorithm is None or salt is None or digest is None or spin is None:
         return None
     try:
         spin_count = int(spin)
@@ -344,7 +344,7 @@ def _word_finding(gate: GateType, where: str, attrs: dict[str, str]) -> _Finding
     spin = attrs.get("cryptSpinCount")
     salt = attrs.get("salt")
     digest = attrs.get("hash")
-    if sid and spin and salt and digest:
+    if sid is not None and spin is not None and salt is not None and digest is not None:
         opt = unified_protect_line_from_sid(int(sid), int(spin), salt, digest)
         return _Finding(gate, RecoveryClass.STRIP, where, HashScheme.OFFICE_SHEETPROT, None, opt, _NOTE_WORD_LEGACY, opt_hash_line=opt)
     if "cryptAlgorithmSid" in attrs or "hash" in attrs:
@@ -609,13 +609,13 @@ def _vba_locked(cmg: str | None, dpb: str | None) -> bool:
     is non-zero, or when DPB holds anything other than the no-password sentinel
     ([MS-OVBA] Section 2.3.1.16). An unprotected project has CMG = 0 and DPB = 0x00.
     """
-    if cmg:
+    if cmg is not None:
         try:
             if any(vba.decode_data_encryption(cmg)):
                 return True
         except (ValueError, IndexError):
             return False
-    if dpb:
+    if dpb is not None:
         try:
             if vba.decode_data_encryption(dpb) != _DPB_SENTINEL:
                 return True
@@ -650,13 +650,13 @@ def _scan_vba(data: bytes, where: str) -> list[_Finding]:
     if not _vba_locked(cmg, dpb):
         return []
     line: str | None = None
-    if dpb:
+    if dpb is not None:
         try:
             line = vba.extract_vba_hash(dpb)
         except (ValueError, IndexError):
             line = None
     if line is not None:
-        opt = unified_vba_line(dpb) if dpb else None
+        opt = unified_vba_line(dpb) if dpb is not None else None
         return [_Finding(GateType.VBA_PROJECT, RecoveryClass.STRIP, where, HashScheme.VBA_SHA1, _MODE_VBA, line, _NOTE_VBA_HASH, opt_hash_line=opt)]
     return [_Finding(GateType.VBA_PROJECT, RecoveryClass.STRIP, where, note=_NOTE_VBA_OTHER)]
 

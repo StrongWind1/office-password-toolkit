@@ -323,7 +323,7 @@ class _InfoStats:
         self.total += 1
         prod = _PRODUCT_DESCRIPTIONS.get(result.product, result.product.value)
         self.by_product[prod] = self.by_product.get(prod, 0) + 1
-        if result.error:
+        if result.error is not None:
             self.errors += 1
             return
         status = _file_status_word(result.gates)
@@ -335,7 +335,7 @@ class _InfoStats:
             self.not_recoverable += 1
         else:
             self.no_protection += 1
-        if result.hash_line:
+        if result.hash_line is not None:
             self.hashes_extracted += 1
             for gate in result.gates:
                 if gate.hashcat_mode is not None:
@@ -475,7 +475,7 @@ def _file_status_word(gates: list[Gate]) -> str:
 
 def _describe_open_gate(gate: Gate) -> str:
     """Describe a document-open encryption gate in human terms."""
-    scheme_name = _SCHEME_HUMAN_NAMES.get(gate.scheme, "") if gate.scheme else ""
+    scheme_name = _SCHEME_HUMAN_NAMES.get(gate.scheme, "") if gate.scheme is not None else ""
     qualifier = f" ({scheme_name})" if scheme_name else ""
     return f"Document-open password{qualifier}"
 
@@ -498,15 +498,15 @@ def _describe_protection_gates(gates: list[Gate]) -> list[str]:
             without_hash = count - len(with_hash)
             desc = f"1 {singular}" if count == 1 else f"{count} {plural}"
             if with_hash and without_hash and count > 1:
-                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme else "hash"
+                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme is not None else "hash"
                 desc += f" ({len(with_hash)} with {scheme_name} hashes, {without_hash} without password)"
             elif with_hash and count > 1:
-                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme else "hash"
+                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme is not None else "hash"
                 desc += f" ({scheme_name} hashes)"
             elif without_hash and count > 1:
                 desc += " (no password)"
             elif with_hash:
-                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme else "hash"
+                scheme_name = _SCHEME_HUMAN_NAMES.get(with_hash[0].scheme, "hash") if with_hash[0].scheme is not None else "hash"
                 desc += f" ({scheme_name} hash)"
             else:
                 desc += " (no password)"
@@ -533,7 +533,7 @@ def _action_hint(gates: list[Gate], path: Path) -> str:
     open_gates = [g for g in gates if g.gate is GateType.OPEN]
     if open_gates:
         gate = open_gates[0]
-        mode_str = f"hashcat -m {gate.hashcat_mode}" if gate.hashcat_mode else "hashcat"
+        mode_str = f"hashcat -m {gate.hashcat_mode}" if gate.hashcat_mode is not None else "hashcat"
         return f"Crack with {mode_str}, or: opt unlock -p <password>"
     return f"Run: opt unlock {path.name}"
 
@@ -543,7 +543,7 @@ def _gate_summary_compact(gates: list[Gate]) -> str:
     open_gates = [g for g in gates if g.gate is GateType.OPEN]
     if open_gates:
         gate = open_gates[0]
-        scheme_name = _SCHEME_HUMAN_NAMES.get(gate.scheme, "") if gate.scheme else ""
+        scheme_name = _SCHEME_HUMAN_NAMES.get(gate.scheme, "") if gate.scheme is not None else ""
         return f"document-open password ({scheme_name})" if scheme_name else "document-open password"
 
     by_type: dict[GateType, list[Gate]] = {}
@@ -879,7 +879,7 @@ def _log_gates(gates: list[Gate]) -> None:
             "  gate=%s  recovery=%s  scheme=%s  hashcat=%s  where=%s",
             g.gate.value,
             g.recovery.value,
-            g.scheme.value if g.scheme else "-",
+            g.scheme.value if g.scheme is not None else "-",
             g.hashcat_mode,
             g.where or "-",
         )
@@ -925,7 +925,7 @@ def _info_emit_json(
 def _info_print_single(file_result: _FileResult) -> None:
     """Print detailed single-file info output to stderr."""
     _err.print(f"[bold]{_file_header(file_result.path, file_result.product, encrypted=file_result.encrypted)}[/]")
-    if file_result.error:
+    if file_result.error is not None:
         _err.print(f"  [red]Error: {file_result.error}[/]")
         return
     if not file_result.gates:
@@ -942,7 +942,7 @@ def _info_print_single(file_result: _FileResult) -> None:
 def _info_print_table_line(file_result: _FileResult, pad_to: int) -> None:
     """Print one compact table line for multi-file info output to stderr."""
     status_word = _file_status_word(file_result.gates)
-    if file_result.error:
+    if file_result.error is not None:
         summary = f"error: {file_result.error}"
     elif not file_result.gates:
         summary = ""
@@ -966,7 +966,7 @@ def _info_emit_results(
 ) -> None:
     """Emit per-file output (stderr + stdout hash lines) and accumulate stats."""
     for file_result in results:
-        if file_result.container is ContainerKind.UNKNOWN and not file_result.error:
+        if file_result.container is ContainerKind.UNKNOWN and file_result.error is None:
             if single_file:
                 _err.print(f"{file_result.path.name} — not a recognized Office file, skipping.")
             continue
@@ -1126,7 +1126,7 @@ def _unlock_decode_access(path: Path) -> Path | None:
     if header is None:
         return None
     decode = decode_jet_password(header)
-    if decode.recovered:
+    if decode.recovered is not None:
         _err.print(f"[green]Database password recovered:[/] [bold]{decode.recovered!r}[/]")
     return None
 
@@ -1498,7 +1498,7 @@ def _decode_access(path: Path) -> None:
         _err.print("[yellow]Not a Jet .mdb file (ACE .accdb uses real encryption -- try decrypt).[/]")
         raise typer.Exit(code=EXIT_UNSUPPORTED)
     decode_result = decode_jet_password(header)
-    if decode_result.recovered:
+    if decode_result.recovered is not None:
         _err.print(f"[green]Jet database password recovered:[/] {decode_result.recovered!r}")
         typer.echo(decode_result.recovered)
     else:

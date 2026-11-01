@@ -566,7 +566,7 @@ def _jet_open_gate(header: AccessHeader) -> Gate | None:
     means no database-open password was ever set.
     """
     decode = decode_jet_password(header)
-    if not decode.recovered:
+    if decode.recovered is None or decode.recovered == "":
         return None  # empty decoded password -> no open gate
     era = "Jet 4" if header.engine is AccessEngine.JET4 else "Jet 3"
     note = "DECODE (UNCONFIRMED community RE): password recovered directly from the header; the database body is cleartext. " + decode.note

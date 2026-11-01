@@ -25,7 +25,7 @@ import hmac
 import logging
 import struct
 from collections.abc import Callable
-from typing import Final
+from typing import Final, Protocol
 
 from argon2.low_level import ARGON2_VERSION as _ARGON2_VERSION
 from argon2.low_level import Type as _Argon2Type
@@ -50,6 +50,14 @@ def digest(name: str, data: bytes) -> bytes:
     if name == "md2":
         return md2(data)
     return hashlib.new(name, data, usedforsecurity=False).digest()
+
+
+class _HashLike(Protocol):
+    """Structural type for objects returned by :func:`new`."""
+
+    def update(self, data: bytes, /) -> None: ...
+    def digest(self) -> bytes: ...
+    def hexdigest(self) -> str: ...
 
 
 class _LegacyHashWrapper:
@@ -81,7 +89,7 @@ class _LegacyHashWrapper:
 _HashFunc = Callable[[bytes], bytes]
 
 
-def new(name: str, data: bytes = b"") -> hashlib._Hash | _LegacyHashWrapper:
+def new(name: str, data: bytes = b"") -> _HashLike:
     """Return a hashlib-compatible hash object for the named algorithm.
 
     For standard algorithms (sha1, sha256, etc.) delegates to ``hashlib.new()``.

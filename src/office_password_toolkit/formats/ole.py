@@ -1022,7 +1022,7 @@ def _vba_dpb(ole: olefile.OleFileIO) -> str | None:
 def _vba_hash_line(ole: olefile.OleFileIO) -> str | None:
     """Return the hashcat -m 110 line for a hash-protected VBA project, or ``None``."""
     dpb = _vba_dpb(ole)
-    if not dpb:
+    if dpb is None:
         return None
     try:
         return vba.extract_vba_hash(dpb)
@@ -1597,7 +1597,7 @@ class OleHandler(FormatHandler):
         if open_info is not None:
             logger.debug("open gate: %s keyBits=%d", open_info.scheme.value, open_info.key_bits)
             opens_with = self._legacy_default(app, open_info)
-            if opens_with:
+            if opens_with is not None:
                 logger.debug("open gate: opens with default password")
             return _rc4_open_gate(app, open_info, opens_with)
         if app == _LegacyApp.XLS:
@@ -1768,7 +1768,7 @@ class OleHandler(FormatHandler):
         note = "the modify password is stored in clear -- read it (or clear fWriteReservation)"
         if table is not None:
             password = _sttbf_assoc_string(word_document, table, _ASSOC_WRITE_RESERVATION_INDEX)
-            if password:
+            if password is not None:
                 note = f"modify password (cleartext): {password!r}"
         return Gate(gate=GateType.MODIFY, recovery=RecoveryClass.READ, where="Table stream SttbfAssoc[0x11] (cleartext UTF-16LE); FibBase.fWriteReservation", note=note)
 
@@ -1783,7 +1783,7 @@ class OleHandler(FormatHandler):
         vba_line = _vba_hash_line(ole)
         if vba_line is not None:
             dpb = _vba_dpb(ole)
-            opt_vba = vba.unified_vba_line(dpb) if dpb else None
+            opt_vba = vba.unified_vba_line(dpb) if dpb is not None else None
             hashes.append(ExtractedHash(scheme=HashScheme.VBA_SHA1, hashcat_mode=110, value=vba_line, gate=GateType.VBA_PROJECT, opt_value=opt_vba))
         return hashes
 

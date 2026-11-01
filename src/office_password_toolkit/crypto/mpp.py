@@ -115,7 +115,7 @@ def _decode_password_block(props: dict[int, bytes], props_key: int) -> str | Non
     if block_raw is None or len(block_raw) < _PASSWORD_BLOCK_SIZE:
         return None
     code_raw = props.get(PROPS_KEY_ENCRYPTION_CODE)
-    code = code_raw[0] if code_raw and len(code_raw) >= 1 else 0
+    code = code_raw[0] if code_raw is not None and len(code_raw) >= 1 else 0
     mask = (0xFF - code) & 0xFF if code != 0 else 0
     block = bytearray(block_raw[:_PASSWORD_BLOCK_SIZE])
     for i in range(_PASSWORD_BLOCK_SIZE):
