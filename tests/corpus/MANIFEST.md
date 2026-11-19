@@ -63,4 +63,3 @@ Passwords: encrypted → `Open1234_` (ODF → `Odf1234_`); per-gate in `password
 ## Remaining gaps
 
 See [COVERAGE.md](COVERAGE.md) for the full gap analysis.
-

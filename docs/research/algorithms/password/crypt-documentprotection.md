@@ -297,7 +297,7 @@ FUNCTION ReverseAndHex(dword)
     #   If the DWORD bytes in memory are [64, CE, ED, 7E],
     #   the reversed byte order is 7E ED CE 64,
     #   and the hex string is "7EEDCE64".
-    
+
     SET byte0 TO (dword >> 24) AND 0xFF
     SET byte1 TO (dword >> 16) AND 0xFF
     SET byte2 TO (dword >>  8) AND 0xFF

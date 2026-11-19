@@ -247,4 +247,3 @@ Every file in the first-party corpus (4561 files, 0 errors) bucketed against the
 **D. Label artifacts (not real gaps):**
 - RecoveryClass `decrypt`/`bypass`/`none` show 0: static enumeration reports the cheapest action; these are runtime actions.
 - Some `.xls` 16-bit verifiers appear under STRIP (preferred action) rather than COLLIDE.
-

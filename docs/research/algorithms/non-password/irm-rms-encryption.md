@@ -554,7 +554,7 @@ function obtain_content_key_irm(eul_stream):
     license_id = base64_decode_unicode(header.ID_String)      # "Windows:<email>" or "Passport:<email>"
     cert_chain_xml = parse_UTF8_LP_P4(eul_stream, after=header)  # section 2.2.7
     # cert_chain_xml contains <?xml version="1.0"?><CERTIFICATECHAIN><CERTIFICATE>base64...</CERTIFICATE>...</CERTIFICATECHAIN>
-    
+
     for each CERTIFICATE element in cert_chain_xml:
         cert_body = base64_decode(CERTIFICATE.text)           # yields Unicode XrML license
         xrml = parse_xrml(cert_body)

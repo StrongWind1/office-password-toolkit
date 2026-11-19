@@ -9186,4 +9186,3 @@ protected/xlsx-sheetprot-nopw-2013.xlsx	ooxml-zip	.xlsx	not encrypted
 protected/xlsx-workbookprot-nopw-2013.xlsx	ooxml-zip	.xlsx	not encrypted
   Workbook protection: strip @ xl/workbook.xml <workbookProtection>
 ```
-
