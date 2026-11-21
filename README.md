@@ -1,6 +1,6 @@
-<p align="center"><strong><code>office-password-toolkit</code></strong></p>
+<h1 align="center">office-password-toolkit</h1>
 
-<p align="center"><em>Detect, extract, bypass, and decrypt every password gate in Microsoft Office and OpenDocument files.</em></p>
+<p align="center"><strong>Point it at an Office file. It strips what it can, decrypts what it can, and hands hashcat the rest.</strong></p>
 
 <p align="center">
   <a href="https://github.com/StrongWind1/office-password-toolkit/actions/workflows/ci.yml"><img src="https://github.com/StrongWind1/office-password-toolkit/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -14,61 +14,88 @@
   <a href="https://strongwind.dev/office-password-toolkit/getting-started/installation/">Installation</a> &bull;
   <a href="https://strongwind.dev/office-password-toolkit/getting-started/quick-start/">Quick start</a> &bull;
   <a href="https://strongwind.dev/office-password-toolkit/usage/commands/">Commands</a> &bull;
-  <a href="https://strongwind.dev/office-password-toolkit/reference/gates/">Gate catalog</a> &bull;
+  <a href="https://strongwind.dev/office-password-toolkit/research/overview/">Gate catalog</a> &bull;
   <a href="https://strongwind.dev/office-password-toolkit/">Documentation</a>
 </p>
 
 ---
 
-`office-password-toolkit` (CLI: `opt`) triages, extracts, bypasses, and decrypts passwords and protection across 11 Office products and 80+ file extensions. Point it at a file and it walks the recovery ladder automatically — read a cleartext password, flip a protection flag, strip a record, forge a checksum, open with a built-in default, or decrypt with a key you supply. 62 gates cover every protection type in the Microsoft Office and OpenDocument ecosystems. Only when a gate is genuinely encrypted and no shortcut exists does the tool stop and hand you a hashcat-ready hash line.
+`office-password-toolkit` (CLI: `opt`) finds every password and protection gate in Microsoft Office and OpenDocument files and gets you past it. Most of those gates encrypt nothing, so it tries the free paths first: read a cleartext password, flip a protection flag, strip a record, forge a checksum, open with a built-in default, or decrypt with a key you supply. Only when a gate is real encryption with no shortcut does it stop and hand you a hashcat-ready hash line.
+
+## Example
+
+```console
+$ opt info *.xlsx *.docx *.pst
+secret.xlsx        encrypted:agile-sha512  removable:sheets(3) removable:workbook removable:write  removable:macros
+book.xls           encrypted:rc4-sha1      removable:sheets(12) removable:write
+report.docx        removable:write removable:restricted
+payroll.xlsx       encrypted:agile-sha512  removable:sheets(1)
+unlocked.docx      open
+macro.xlsm         removable:macros
+archive.pst        trivial:pst-advisory  info:pst-encoded
+irm-doc.docx       blocked:rights-managed
+signed.xlsx        info:signed
+old.xls            trivial:xor-obfuscation  removable:sheets(5)
+```
+
+Each tag is `status:scheme` on stderr; any hash goes to stdout. `opt unlock` clears `removable:` and `trivial:` gates without a password, and `encrypted:` gates get a hash line for hashcat.
 
 ## Features
 
-- **3 CLI commands** — `opt info` (hash to stdout, status/scheme to stderr), `opt unlock` (try everything), and `opt advanced` (8 expert subcommands for surgical control)
-- **Recovery ladder** — each gate is assigned the cheapest viable action: `DEFAULT` > `READ` > `DECODE` > `BYPASS` > `STRIP` > `COLLIDE` > `CRACK`, applied in order so free wins come first
-- **62 gates** — every password, protection, and permission mechanism across 11 products: document-open encryption, modify/edit restrictions, sheet/workbook/range/revisions protection, section locks, VBA project passwords, advisory CRC passwords, keyless body ciphers, and digital signatures
-- **Self-describing unified format** — `--format opt` emits four hash families (`$office$`, `$protect$`, `$odf$`, `$vba$`) that encode algorithm, key size, and all parameters in a single parseable line
-- **Hashcat integration** — `--format hashcat` (the default) emits hash lines ready for modes 9400, 9500, 9600, 9700, 9800, 25300, 18400, 18600, and 110
-- **Built-in decryption** — ECMA-376 standard and agile, RC4+MD5, RC4-CryptoAPI, XOR obfuscation, ODF 1.1 (Blowfish), ODF 1.2 (AES-256), ODF 1.3 (Argon2id + AES-GCM), and MSISAM (Microsoft Money)
-- **Default passwords tried automatically** — `VelvetSweatshop` and `/01Hannes Ruescher/01` are attempted before any user-supplied password
-- **Input never modified** — every writing command opens the input read-only and produces a new file
-- **Python API** — `import office_password_toolkit as opt; opt.detect("file.xlsx")` for programmatic access
+- **Three commands**: `opt info` (hash to stdout, status and scheme to stderr), `opt unlock` (try everything), and `opt advanced` (8 expert subcommands for surgical control).
+- **Recovery ladder**: each gate gets the cheapest viable action, `DEFAULT` > `READ` > `DECODE` > `BYPASS` > `STRIP` > `COLLIDE` > `CRACK`, applied in order so free wins come first. The default passwords `VelvetSweatshop` and `/01Hannes Ruescher/01` are tried before any password you supply.
+- **62 gates**: every password, protection, and permission mechanism across 11 products, including document-open encryption, modify/edit restrictions, sheet/workbook/range/revisions protection, section locks, VBA project passwords, advisory CRC passwords, keyless body ciphers, and digital signatures.
+- **Hashcat integration**: `--format hashcat` emits hash lines ready for modes 9400, 9500, 9600, 9700, 9800, 25300, 18400, 18600, and 110. It is the default for `opt advanced extract`.
+- **Self-describing hash lines**: `--format opt` on `opt advanced extract` (and `unified`, the `opt info` default) emits `$office-open$`, `$office-protect$`, `$office-vba$`, and `$odf$` lines that encode the algorithm, key size, and every parameter.
+- **Built-in decryption**: ECMA-376 standard and agile, RC4+MD5, RC4-CryptoAPI, XOR obfuscation, ODF 1.1 (Blowfish), ODF 1.2 (AES-256), ODF 1.3 (Argon2id + AES-GCM), and MSISAM (Microsoft Money).
+- **Input never modified**: every writing command opens the input read-only and produces a new file.
+- **Python API**: the same detection, extraction, decryption, and bypass logic as a library (see [Python API](#python-api)).
+
+## Installation
+
+```sh
+uv tool install office-password-toolkit   # recommended
+pip install office-password-toolkit       # or with pip
+```
+
+From source:
+
+```sh
+uv tool install git+https://github.com/StrongWind1/office-password-toolkit
+```
+
+Both the `opt` and `office-password-toolkit` commands are installed.
+
+## Quick start
+
+```sh
+opt info budget.xlsx                                   # gates to stderr, hash to stdout
+opt unlock secret.docx -p 'Passw0rd'                   # decode, defaults, decrypt, collide, bypass
+opt advanced extract secret.docx | hashcat -m 9600 -   # pipe the hash to hashcat
+opt advanced decode legacy.xls                         # reverse keyless XOR obfuscation
+opt advanced collide mailbox.pst                       # mint a CRC-32 collision password
+opt advanced bypass budget.xlsx                        # strip all non-encrypting gates
+```
+
+Every `advanced` subcommand, flag, and exit code is in the [command reference](https://strongwind.dev/office-password-toolkit/usage/commands/).
 
 ## Supported formats
 
 | Product | Legacy | Modern | Gates |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Word | `.doc` | `.docx` `.docm` | open (XOR, RC4+MD5, RC4-CryptoAPI, ECMA-376 standard/agile), modify, VBA, signature |
 | Excel | `.xls` `.xlsb` | `.xlsx` `.xlsm` | open (XOR, RC4+MD5, RC4-CryptoAPI, ECMA-376 standard/agile), sheet, workbook, range, revisions, modify, VBA, signature |
 | PowerPoint | `.ppt` | `.pptx` `.pptm` | open (RC4-CryptoAPI, ECMA-376 standard/agile), modify, VBA, signature |
 | Visio | `.vsd` | `.vsdx` | open, VBA |
-| Project | `.mpp` | — | open, write-reservation |
-| Publisher | `.pub` | — | open, VBA |
-| OneNote | — | `.one` | section-open (agile, standard, RC4-CryptoAPI) |
-| Outlook | `.pst` `.ost` | — | advisory CRC-32 password, keyless body cipher (Permute/Cyclic) |
+| Project | `.mpp` | n/a | open, write-reservation |
+| Publisher | `.pub` | n/a | open, VBA |
+| OneNote | n/a | `.one` | section-open (agile, standard, RC4-CryptoAPI) |
+| Outlook | `.pst` `.ost` | n/a | advisory CRC-32 password, keyless body cipher (Permute/Cyclic) |
 | Access | `.mdb` `.mdw` | `.accdb` | database password (Jet 3/4 decode, ACE 2007 RC4-CryptoAPI, ACE 2010+ agile), User-Level Security (ULS) |
-| Money | `.mny` | — | MSISAM page encryption (MD5/SHA-1 + RC4) |
-| OpenDocument | — | `.odt` `.ods` `.odp` | open (Blowfish 1.1, AES-256 1.2, Argon2id 1.3), sheet/section protection |
+| Money | `.mny` | n/a | MSISAM page encryption (MD5/SHA-1 + RC4) |
+| OpenDocument | n/a | `.odt` `.ods` `.odp` | open (Blowfish 1.1, AES-256 1.2, Argon2id 1.3), sheet/section protection |
 
-hashcat modes emitted: **9400** (Office 2003 standard), **9500** / **9600** (Office 2007-2019 agile), **9700** / **9800** (legacy RC4), **25300** (ISO protection), **18400** / **18600** (ODF), **110** (VBA SHA-1).
-
-## Example
-
-```bash
-# triage a file -- gates and hashes to stdout, human-readable status to stderr
-opt info budget.xlsx
-
-# try everything: decode, default passwords, decrypt, collide, bypass
-opt unlock secret.docx -p 'Passw0rd'
-
-# expert subcommands for surgical control
-opt advanced extract secret.docx | hashcat -m 9600 -     # pipe the hash to hashcat
-opt advanced extract secret.docx --format opt             # self-describing $office$*sha512*...
-opt advanced decode legacy.xls                            # reverse keyless XOR obfuscation
-opt advanced collide mailbox.pst                          # mint a CRC-32 collision password
-opt advanced bypass budget.xlsx                           # strip all non-encrypting gates
-opt advanced decrypt secret.docx -p 'Passw0rd'           # decrypt with a known password
-```
+The hashcat side of each scheme is in the [hashcat mode index](https://strongwind.dev/office-password-toolkit/hashcat/current/).
 
 ## Python API
 
@@ -96,52 +123,36 @@ opt.decrypt_file("secret.xlsx", "decrypted.xlsx", password="Passw0rd")
 opt.bypass_file("budget.xlsx", "unlocked.xlsx")
 ```
 
-## Installation
+## Development
 
-Install from [PyPI](https://pypi.org/project/office-password-toolkit/) (recommended):
-
-```bash
-uv tool install office-password-toolkit    # exposes both `opt` and `office-password-toolkit`
-```
-
-Or with pip:
-
-```bash
-pip install office-password-toolkit
-```
-
-Or install from source:
-
-```bash
+```sh
 git clone https://github.com/StrongWind1/office-password-toolkit.git
 cd office-password-toolkit
 uv sync
+make check   # ruff + ty + pytest + mkdocs --strict
 ```
 
-## Architecture
+How the code is laid out: [modular design](https://strongwind.dev/office-password-toolkit/design/modular-design/) and [code mapping](https://strongwind.dev/office-password-toolkit/design/toolkit-architecture/).
 
-```
-src/office_password_toolkit/
-  detect.py / extract.py / decrypt.py / bypass.py    High-level API (detect -> dispatch to handler)
-  models.py / constants.py                           Enums, dataclasses, exit codes, magic bytes
-  cli/app.py                                         Typer CLI: info, unlock, advanced
+## Credits
 
-  formats/                                           Per-container handlers (OLE, OOXML, ODF, ...)
-    base.py                                          FormatHandler ABC
-    ole.py / ooxml.py / odf.py / ...                 Container-specific gate enumeration + operations
+- [olefile](https://github.com/decalage2/olefile): reads and rewrites the OLE/CFB containers (`.doc`, `.xls`, `.ppt`, and the wrapper around encrypted OOXML).
+- [cryptography](https://github.com/pyca/cryptography) and [argon2-cffi](https://github.com/hynek/argon2-cffi): the cipher primitives and the Argon2id KDF for ODF 1.3.
+- [Typer](https://github.com/fastapi/typer) and [Rich](https://github.com/Textualize/rich): the CLI and its stderr output.
+- Microsoft Open Specifications [`[MS-OFFCRYPTO]`](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-offcrypto/3c34d72a-1a61-4b52-a893-196f9157f083), [`[MS-OVBA]`](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc), and [`[MS-PST]`](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-pst/141923d5-15ab-4ef1-a524-6dce75aae546), plus [ECMA-376](https://ecma-international.org/publications-and-standards/standards/ecma-376/) and [OASIS OpenDocument](https://docs.oasis-open.org/office/OpenDocument/v1.3/): the formats and algorithms implemented.
+- [hashcat](https://github.com/hashcat/hashcat): the cracker the hash lines are built for.
+- John the Ripper's [office2john](https://github.com/openwall/john/blob/bleeding-jumbo/run/office2john.py) and [msoffcrypto-tool](https://github.com/nolze/msoffcrypto-tool): extraction and decryption are cross-checked against them.
 
-  crypto/                                            Cryptographic primitives and protocol verifiers
-    ciphers.py                                       All cipher operations (sole cryptography import)
-    hashes.py                                        All hash/KDF operations (sole argon2-cffi import)
-    ecma376.py / rc4legacy.py / odf.py / ...         Format-specific KDFs, verifiers, and decryptors
-```
+## Related tools
 
-Third-party crypto libraries are imported in exactly two files: `ciphers.py` (for `cryptography`) and `hashes.py` (for `argon2-cffi` and pure-Python MD4/MD2). All other modules access cipher and hash operations through these abstractions, so a library API change touches one file.
+- [**ArchiveWolf**](https://github.com/StrongWind1/ArchiveWolf): Encrypted ZIP / RAR / 7-Zip analyser and hashcat hash converter, with key recovery for RAR 1.3 and ZipCrypto
 
-## Documentation
+All tools: [strongwind.dev](https://strongwind.dev)
 
-Full documentation is available at **[strongwind.dev/office-password-toolkit](https://strongwind.dev/office-password-toolkit/)**, including the complete gate catalog, command reference, and Python API guide.
+## Disclaimer
+
+office-password-toolkit is for authorized security testing, research, and education. Use it only against systems and data you own or have written permission to test. You are responsible for how you use it.
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+[Apache License 2.0](LICENSE)
