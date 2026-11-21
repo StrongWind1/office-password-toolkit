@@ -1,5 +1,5 @@
 site_name: office-password-toolkit
-site_description: Detect, extract, bypass, and decrypt passwords and protection in Microsoft Office and OpenDocument files
+site_description: "Detect, extract, bypass, and decrypt passwords and protection in Microsoft Office and OpenDocument files"
 site_url: https://strongwind.dev/office-password-toolkit/
 repo_url: https://github.com/StrongWind1/office-password-toolkit
 repo_name: StrongWind1/office-password-toolkit
@@ -56,6 +56,9 @@ theme:
     - content.action.edit
     - content.action.view
 
+hooks:
+  - hooks/html_validity.py
+
 plugins:
   - search
   # Downloads the Google Fonts requested by theme.font at build time so the
@@ -71,7 +74,6 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
-      anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
