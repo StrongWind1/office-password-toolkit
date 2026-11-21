@@ -103,7 +103,7 @@ Both `opt` and `office-password-toolkit` are available as CLI entry points after
 
 <div class="grid cards" markdown>
 
--   :material-rocket-launch: **Getting started**
+- :material-rocket-launch: **Getting started**
 
     ---
 
@@ -111,13 +111,12 @@ Both `opt` and `office-password-toolkit` are available as CLI entry points after
 
     [:octicons-arrow-right-24: Installation](getting-started/installation.md) &nbsp; [:octicons-arrow-right-24: Quick start](getting-started/quick-start.md)
 
--   :material-console: **Commands**
+- :material-console: **Commands**
 
     ---
 
     Full reference for all three commands, flags, and exit codes.
 
     [:octicons-arrow-right-24: Command reference](usage/commands.md)
-
 
 </div>

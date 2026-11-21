@@ -2,7 +2,7 @@
 
 Visio spans two container families keyed by extension. `.vsd` (and `.vst`) is the legacy **OLE/CFB** compound file carrying Visio-specific binary streams. `.vsdx`/`.vstx`/`.vsdm` are **OPC/ZIP** packages (OOXML) containing XML parts such as `visio/document.xml` and `visio/pages/pageN.xml`, as specified by [MS-VSDX]. One wrinkle shared with the rest of the Office OOXML family: a `.vsdx` file with a document-open password is not a ZIP on disk — the entire OPC package is re-wrapped in an **OLE/CFB** container holding `\EncryptionInfo` + `\EncryptedPackage` streams ([MS-OFFCRYPTO] §2.3.4), preserving the outer extension.
 
-Visio defines no application-specific cryptographic protection. The open/encrypt gate uses the exact same [MS-OFFCRYPTO] algorithms as Word, Excel, and PowerPoint. The Lock* cells and Protect* elements are purely advisory UI flags — PtgBool tokens evaluated at formula time — with no password verification and no cryptographic backing. The [MS-VSDX] §4 Security section is empty ("None" for both implementer considerations and security field index).
+Visio defines no application-specific cryptographic protection. The open/encrypt gate uses the exact same [MS-OFFCRYPTO] algorithms as Word, Excel, and PowerPoint. The Lock*cells and Protect* elements are purely advisory UI flags — PtgBool tokens evaluated at formula time — with no password verification and no cryptographic backing. The [MS-VSDX] §4 Security section is empty ("None" for both implementer considerations and security field index).
 
 ## File Extensions
 
@@ -137,7 +137,7 @@ OOXML Visio files use the same ECMA-376 encryption as `.docx`, `.xlsx`, and `.pp
 
 ### Shape-Level Lock Cells — All Formats
 
-Visio defines 26 Lock* cells that restrict UI operations on individual shapes. Every Lock* cell is a **PtgBool parse token** — a Boolean flag evaluated during formula evaluation only ([MS-VSDX] §2.4.4.189–214). These cells carry no password, no hash, no verifier. They are purely advisory: a value of 1 signals the Visio UI to prevent the corresponding operation; a value of 0 (or missing) allows it. Any editor that modifies the XML or binary stream directly can flip or remove these flags without authentication.
+Visio defines 26 Lock*cells that restrict UI operations on individual shapes. Every Lock* cell is a **PtgBool parse token** — a Boolean flag evaluated during formula evaluation only ([MS-VSDX] §2.4.4.189–214). These cells carry no password, no hash, no verifier. They are purely advisory: a value of 1 signals the Visio UI to prevent the corresponding operation; a value of 0 (or missing) allows it. Any editor that modifies the XML or binary stream directly can flip or remove these flags without authentication.
 
 Each Lock* cell MUST have a `ShapeSheet_Type` or `StyleSheet_Type` parent element.
 
@@ -278,7 +278,7 @@ Visio's protection model is dramatically simpler than Word, Excel, or PowerPoint
 
 1. **No application-specific crypto.** The [MS-VSDX] spec defines zero cryptographic structures. All encryption is delegated to [MS-OFFCRYPTO], and VBA protection to [MS-OVBA]. The [MS-VSDX] §4 Security section is literally empty.
 
-2. **No strippable password-based protection.** Unlike Excel (which has sheet/workbook/write-reservation passwords with 16-bit or ISO hash verifiers) or Word (which has document protection with password hashing), Visio has no intermediate password-based gates. The Lock* cells and Protect* flags are pure Boolean flags with no password verification whatsoever.
+2. **No strippable password-based protection.** Unlike Excel (which has sheet/workbook/write-reservation passwords with 16-bit or ISO hash verifiers) or Word (which has document protection with password hashing), Visio has no intermediate password-based gates. The Lock*cells and Protect* flags are pure Boolean flags with no password verification whatsoever.
 
 3. **No write reservation.** Visio has no equivalent of Excel's `<fileSharing>` or Word's write-reservation password.
 

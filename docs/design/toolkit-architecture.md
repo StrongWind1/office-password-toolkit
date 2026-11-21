@@ -196,7 +196,7 @@ The complete mapping from every gate type to its recovery path:
 | `RESTRICT_EDIT` (.docx ISO) | documentProtection *Value | `STRIP` / `CRACK` | `OFFICE_SHEETPROT` / `OFFICE_PROTECT` | 25300 / — |
 | `SECTION` (OneNote) | ObjectDataEncryptionKeyV2 | `CRACK` | `OFFICE_2013` | 9600 |
 | `VBA_PROJECT` | PROJECT DPB= | `BYPASS` / `CRACK` | `VBA_SHA1` | 110 |
-| `SIGNATURE` | _signatures / _xmlsignatures | `STRIP` | — | — |
+| `SIGNATURE` | _signatures /_xmlsignatures | `STRIP` | — | — |
 | `IRM` | IRMDS / CertificateKeyEncryptor | `NONE` | — | — |
 | `MAIL_BODY` (PST) | bCryptMethod | `DECODE` | — | — |
 

@@ -1243,7 +1243,7 @@ def remove_pst_password(pst_path: str) -> None:
 |---|---|---|
 | [MS-OFFCRYPTO] SS2.3.7.1 | `CreatePasswordVerifier_Method1` | 16-bit verifier algorithm, finalizer `0xCE4B` |
 | [MS-OFFCRYPTO] SS2.3.7.2 | `CreateXorKey_Method1` | 16-bit XorKey, `InitialCode[15]`, `XorMatrix[105]` |
-| [MS-OFFCRYPTO] SS2.3.7.4 | `CreatePasswordVerifier_Method2` | 32-bit `lKey` = `(XorKey << 16) | Verifier16` |
+| [MS-OFFCRYPTO] SS2.3.7.4 | `CreatePasswordVerifier_Method2` | 32-bit `lKey` = `(XorKey << 16)` \| `Verifier16` |
 | [MS-OFFCRYPTO] SS2.4.2.2 | Binary Document Write Protection Method 2 | Excel write-protection uses same `CreatePasswordVerifier_Method1` |
 | [MS-OFFCRYPTO] SS4.1.3.4 | Security Considerations: XOR Obfuscation | "Not recommended. Multiple passwords can map to the same key." |
 | [MS-OFFCRYPTO] SS4.1.4 | Security Considerations: Write Protection | "Not considered to be a security mechanism." |

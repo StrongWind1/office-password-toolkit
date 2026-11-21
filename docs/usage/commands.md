@@ -16,7 +16,6 @@
 
 **The input is never modified.** Every writing command opens the input read-only and writes a separate file. A guard refuses to overwrite the input (exit 6) and refuses to overwrite an existing output unless `--force` is passed.
 
-
 ## `opt info` — show gates and extract hashes
 
 Show what protects each file and emit crackable hash lines for piping to hashcat.
@@ -82,13 +81,13 @@ old.xls            trivial:xor-obfuscation  removable:sheets(5)
 Recursive directory scan:
 
 ```console
-$ opt info documents/
+opt info documents/
 ```
 
 Pipe hashes to hashcat:
 
 ```console
-$ opt info *.docx 2>/dev/null | hashcat -m 9600
+opt info *.docx 2>/dev/null | hashcat -m 9600
 ```
 
 Hashes only (suppress stderr):
@@ -108,7 +107,7 @@ secret.xlsx  encrypted:agile-sha512  removable:sheets(3)
 JSON output:
 
 ```console
-$ opt info --format json secret.xlsx
+opt info --format json secret.xlsx
 ```
 
 ```json
@@ -188,7 +187,6 @@ $ opt info --format json secret.xlsx
     | `rights-managed` | IRM / RMS — needs the certificate private key or RMS server authorization |
     | `irm-certificate` | Certificate-wrapped encryption — needs the X.509 private key |
 
-
 ## `opt unlock` — try everything
 
 The one-call recovery path. Runs the full recovery ladder cheapest-first on each file, writing the most-usable output achievable without manual cracking.
@@ -243,19 +241,19 @@ sheetProtection_allLocked.bypassed.xlsx  open
 Try a known password:
 
 ```console
-$ opt unlock secret.xlsx -p "hunter2"
+opt unlock secret.xlsx -p "hunter2"
 ```
 
 Batch with wordlist:
 
 ```console
-$ opt unlock *.docx --wordlist passwords.txt
+opt unlock *.docx --wordlist passwords.txt
 ```
 
 Recurse a directory, overwriting previous output:
 
 ```console
-$ opt unlock folder/ --force
+opt unlock folder/ --force
 ```
 
 Encrypted file, opened by built-in default:
@@ -283,7 +281,6 @@ $office$*2013*100000*256*16*cbca1c999343fbad92075634150034b0*...
 $ echo $?
 4
 ```
-
 
 ## `opt advanced` — expert tools
 
@@ -520,7 +517,6 @@ Range passwords: strip @ xl/worksheets/sheet1.xml <protectedRange>
 
 Exit 0 in normal operation.
 
-
 ## Global options
 
 | Option | Description |
@@ -539,7 +535,6 @@ opt: debug mode enabled
 opt: container=ole-cfb  encrypted=True  extension=.xlsx  product=Excel
 ...
 ```
-
 
 ## Exit codes
 

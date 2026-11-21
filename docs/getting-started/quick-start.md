@@ -10,7 +10,7 @@ Two conventions hold throughout:
 ## 1. Check what protections a file has
 
 ```console
-$ opt info secret.xlsx
+opt info secret.xlsx
 ```
 
 stderr shows each gate as a `status:scheme` tag on one line:
@@ -33,7 +33,7 @@ stdout emits the crackable hash (if any), ready to pipe. The six statuses tell y
 ## 2. Unlock a file automatically
 
 ```console
-$ opt unlock secret.xlsx
+opt unlock secret.xlsx
 ```
 
 `unlock` runs the full pipeline in one call: tries default passwords and keyless decodes, strips every `removable:` and `trivial:` gate, collides tiny verifiers, and writes a clean copy. If the file is genuinely encrypted and no default opens it, `unlock` emits the hash to stdout and exits with code 4 so your script can hand it to hashcat.
@@ -46,8 +46,8 @@ $ opt unlock secret.xlsx
 When `unlock` cannot decrypt, pipe the hash from `info` into hashcat, then feed the recovered password back:
 
 ```console
-$ opt info secret.xlsx | hashcat -m 37000
-$ opt unlock secret.xlsx -p recovered_password
+opt info secret.xlsx | hashcat -m 37000
+opt unlock secret.xlsx -p recovered_password
 ```
 
 The hashcat mode depends on the scheme `info` reported (`agile-sha512` = 9600, `rc4-sha1` = 9800, `standard` = 9400, etc.). The unified hash format (`-m 37000`) auto-detects the right algorithm.
@@ -60,8 +60,8 @@ The hashcat mode depends on the scheme `info` reported (`agile-sha512` = 9600, `
 Both `info` and `unlock` accept multiple files and globs. Hash output preserves file order with blank lines as separators, so file-to-hash alignment is maintained.
 
 ```console
-$ opt info /path/to/office/files/
-$ opt unlock *.xlsx --force
+opt info /path/to/office/files/
+opt unlock *.xlsx --force
 ```
 
 `--force` overwrites existing output files. Without it, `unlock` refuses if `secret.unlocked.xlsx` already exists.

@@ -82,7 +82,7 @@ flowchart LR
 
 | Parameter | Method 1 (Excel) | Method 2 (Word) |
 |---|---|---|
-| Verifier width | 16-bit (`verificationBytes`) + 16-bit (`key`) | 32-bit (`lKey` = key << 16 | verifier) |
+| Verifier width | 16-bit (`verificationBytes`) + 16-bit (`key`) | 32-bit (`lKey` = key << 16 \| verifier) |
 | Storage location | `FilePass` record, `XORObfuscation` struct | `FibBase.lKey` at offset 0x0E |
 | Password encoding | ANSI single-byte, 1-15 chars | ANSI single-byte, 1-15 chars |
 | Hash algorithm | None (arithmetic only) | None (arithmetic only) |
@@ -648,13 +648,13 @@ Binary documents conforming to [MS-PPT] MUST store the write protection password
 The spec states [MS-OFFCRYPTO] section 4.1.3.4:
 
 > "XOR obfuscation is not recommended. Document data can easily be extracted. The document password could be retrievable."
-
+>
 > "Passwords are truncated to 15 characters. It is possible for multiple passwords to map to the same key."
 
 Additionally, from [MS-OFFCRYPTO] section 4.1.4 on Document Write Protection:
 
 > "Document write protection is not considered to be a security mechanism, and the write protection can easily be removed by using a binary editor. Document write protection is meant to protect against accidental modification only."
-
+>
 > "Some file formats, such as those described in [MS-DOC] and [MS-XLS], restrict password length to 15 characters. It is possible for multiple passwords to map to the same key when using document write protection method 2 (section 2.4.2.2)."
 
 **Summary of weaknesses stated or implied by the spec:**
@@ -676,7 +676,7 @@ Additionally, from [MS-OFFCRYPTO] section 4.1.4 on Document Write Protection:
 | [MS-OFFCRYPTO] section 2.3.7.1 | Binary Document Password Verifier Derivation Method 1 | `CreatePasswordVerifier_Method1` — 16-bit verifier, `0xCE4B` final XOR |
 | [MS-OFFCRYPTO] section 2.3.7.2 | Binary Document XOR Array Initialization Method 1 | `CreateXorArray_Method1`, `CreateXorKey_Method1`, `XorRor`, `Ror` helpers; `InitialCode[15]`, `XorMatrix[105]`, `PadArray[15]` constants |
 | [MS-OFFCRYPTO] section 2.3.7.3 | Binary Document XOR Data Transformation Method 1 | `EncryptData_Method1` (rotate-left-5 then XOR), `DecryptData_Method1` (XOR then rotate-right-5) |
-| [MS-OFFCRYPTO] section 2.3.7.4 | Binary Document Password Verifier Derivation Method 2 | `CreatePasswordVerifier_Method2` — 32-bit verifier = `(XorKey << 16) | Verifier16`; Unicode-to-single-byte reduction rules |
+| [MS-OFFCRYPTO] section 2.3.7.4 | Binary Document Password Verifier Derivation Method 2 | `CreatePasswordVerifier_Method2` — 32-bit verifier = `(XorKey << 16)` \| `Verifier16`; Unicode-to-single-byte reduction rules |
 | [MS-OFFCRYPTO] section 2.3.7.5 | Binary Document XOR Array Initialization Method 2 | `CreateXorArray_Method2` — alternate array construction for Word |
 | [MS-OFFCRYPTO] section 2.3.7.6 | Binary Document XOR Data Transformation Method 2 | XOR each byte, skip when input is 0x00 or XOR result is 0x00 |
 | [MS-OFFCRYPTO] section 2.3.7.7 | Password Verification | Recompute verifier, compare to stored value |

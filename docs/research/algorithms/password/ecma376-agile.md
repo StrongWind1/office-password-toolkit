@@ -204,7 +204,6 @@ def verify_agile_password(
 | `ST_HashSize` | `xs:unsignedInt` | 1 | 65,536 |
 | `ST_SpinCount` | `xs:unsignedInt` | 0 | 10,000,000 |
 
-
 ### EncryptionInfo Stream Binary Header [MS-OFFCRYPTO, SS2.3.4.10]
 
 | Field | Offset | Size | Type | Value / Meaning |
@@ -423,7 +422,6 @@ URI: `http://schemas.microsoft.com/office/2006/keyEncryptor/certificate`
 - When agile encryption is used, `EncryptionName` in `\0x06DataSpaces\TransformInfo\StrongEncryptionTransform\0x06Primary` MUST be a null string (`0x00000000`) [MS-OFFCRYPTO, SS2.3.4.3]
 - If algorithms in `EncryptionTransformInfo` differ from `\EncryptionInfo`, the `\EncryptionInfo` stream is authoritative [MS-OFFCRYPTO, SS2.3.4.3]
 
-
 ### Key Derivation: Encryption Key Generation [MS-OFFCRYPTO, SS2.3.4.11]
 
 - Derived from PKCS#5 v2.0 [RFC2898] with adaptations
@@ -469,7 +467,6 @@ END FUNCTION
 - ⚠️ **Contrast with [ISO Write Protection Hash](./iso-protection-hash.md):** agile PREPENDS the iterator (`LE32(i) ‖ Hₙ₋₁`); ISO APPENDS it (`Hₙ₋₁ ‖ LE32(i)`)
 - The padding byte for short keys is `0x36` (not `0x00`) [MS-OFFCRYPTO, SS2.3.4.11]
 
-
 ### IV Generation [MS-OFFCRYPTO, SS2.3.4.12]
 
 ```
@@ -498,7 +495,6 @@ END FUNCTION
 - `keySalt` = binary form of the relevant `saltValue` attribute
 - `blockKey` = purpose-specific constant (or absent → `IV = keySalt` before pad/truncate)
 - Padding byte is `0x36`; result MUST be exactly `blockSize` bytes
-
 
 ### PasswordKeyEncryptor Generation [MS-OFFCRYPTO, SS2.3.4.13]
 
@@ -676,7 +672,6 @@ FUNCTION RecoverIntermediateKey
 END FUNCTION
 ```
 
-
 ### DataIntegrity Generation [MS-OFFCRYPTO, SS2.3.4.14]
 
 - Verifies encrypted data has not been tampered with
@@ -763,7 +758,6 @@ FUNCTION VerifyDataIntegrity
   END IF
 END FUNCTION
 ```
-
 
 ### Data Encryption / Decryption [MS-OFFCRYPTO, SS2.3.4.15]
 
@@ -868,7 +862,6 @@ FUNCTION DecryptPackage
 END FUNCTION
 ```
 
-
 ### Complete Decryption Workflow
 
 ```
@@ -910,7 +903,6 @@ FUNCTION DecryptDocument
 END FUNCTION
 ```
 
-
 ### Appendix: Block Keys
 
 #### PasswordKeyEncryptor Block Keys [MS-OFFCRYPTO, SS2.3.4.13]
@@ -935,7 +927,6 @@ END FUNCTION
 | Key/IV padding byte | `0x36` | SS2.3.4.11 (key sizing), SS2.3.4.12 (IV padding) |
 | Data padding before encryption | `0x00` | SS2.3.4.13 (verifier, hash, key padding to blockSize multiples) |
 
-
 ### Security Considerations [MS-OFFCRYPTO, SS4.1.3.1]
 
 - **CBC and integrity mandatory:** agile encryption requires CBC and corruption detection (HMAC), unlike standard encryption which uses ECB and has no integrity check
@@ -948,7 +939,6 @@ END FUNCTION
 - **3DES key encoding:** `keyBits` MUST be 192 (168-bit) or 128 (112-bit); decrypted key includes DES parity bits (<16>, <17>)
 - **DataIntegrity element:** all Office-encrypted agile documents include it; schema allows absence for non-ECMA-376 applications (<20>)
 - **Contrast with standard:** standard encryption lacks CBC and corruption detection; agile addresses both weaknesses
-
 
 ### Spec References
 

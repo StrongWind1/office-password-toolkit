@@ -46,7 +46,7 @@ graph LR
 The spec is unambiguous:
 
 > "Binary documents that conform to [MS-DOC] MUST store the write protection password in the file in plaintext." — [MS-OFFCRYPTO] SS2.4.2.1
-
+>
 > "The write-reservation password is embedded in cleartext in the file. Be aware that protection with a write reservation password is not considered a security mechanism." — [MS-DOC] SS4.2
 
 The password sits in the `SttbfAssoc` string table at index 0x11 (decimal 17) in the Table stream (`0Table` or `1Table`). It is encoded as UTF-16LE with a maximum length of 15 characters.

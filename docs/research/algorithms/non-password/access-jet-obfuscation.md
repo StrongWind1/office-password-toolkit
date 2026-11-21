@@ -540,7 +540,7 @@ The Content Hash ([MS-OVBA] section 2.4.2) provides an integrity digest for the 
 | [MS-OVBA] section 2.4.4.1 | Password Hash Data Structure | 29-byte structure: Reserved, GrbitKey, GrbitHashNull, KeyNoNulls, PasswordHashNoNulls, Terminator |
 | [MS-OVBA] section 2.4.4.2 | Encode Nulls | Replaces 0x00 with 0x01 and records positions in bitfield |
 | [MS-OVBA] section 2.4.4.3 | Decode Nulls | Restores 0x00 bytes from bitfield |
-| [MS-OVBA] section 2.4.4.4 | Password Hash Algorithm | SHA-1(Password MBCS || Key 4-byte); single pass, no iteration |
+| [MS-OVBA] section 2.4.4.4 | Password Hash Algorithm | SHA-1(Password MBCS \|\| Key 4-byte); single pass, no iteration |
 | [MS-OVBA] section 2.4.4.5 | Password Hash Validation | Compare new hash against stored hash using same Key |
 | [MS-OVBA] section 4.1 | Project Integrity Verification | Content Hash used to verify VBA project integrity |
 | [MS-OVBA] section 4.2 | Encryption Method | Explicit statement: "designed to obfuscate, not to secure" |
